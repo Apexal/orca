@@ -8,6 +8,8 @@ verify_ssl = true
 [packages]
 fastapi = "*"
 lxml = "*"
+psycopg2 = "*"
+python-dotenv = "*"
 
 [requires]
 python_version = "3.8"
