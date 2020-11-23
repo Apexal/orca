@@ -10,6 +10,7 @@ fastapi = "*"
 lxml = "*"
 psycopg2 = "*"
 python-dotenv = "*"
+requests = "*"
 
 [requires]
 python_version = "3.8"

@@ -1,14 +1,11 @@
 from .models import ClassTypeEnum, CourseSection, CourseSectionPeriod
-from typing import List, Optional
-from datetime import date, datetime
+from typing import List, Optional, Tuple
+from datetime import datetime
+import requests
 import lxml.html
 import re
 
-url = "202101.html"
-
-doc = lxml.html.parse(url)
-
-rows = doc.xpath('//tr[@align = "LEFT"]')
+schedule_url_base = "https://sis.rpi.edu/reg/zs"
 
 day_letters = {
     "M": 1,
@@ -30,7 +27,6 @@ class_types = {
 
 def sanitize(str: str) -> str:
     '''Sanitize a string by stripping whitespace on edges and in between.'''
-    # TODO: strip middle whitespace
     return ' '.join(str.strip().split())
 
 
@@ -41,12 +37,14 @@ def create_period(semester_id: str, crn: str, values: List[str]) -> CourseSectio
         days = list(map(lambda day_letter: day_letters[day_letter], filter(
             lambda v: v != " ", days_raw)))
 
+    start_time, end_time = determine_times(values[7], values[8])
+
     return CourseSectionPeriod(
         crn=crn,
         semester_id=semester_id,
         class_type=class_types[values[2]] if values[2] else None,
-        start_time='hh:mm a',
-        end_time='hh:mm a',
+        start_time=start_time,
+        end_time=end_time,
         instructors=values[9].split('/'),
         days=days
     )
@@ -73,8 +71,36 @@ def create_course_section(semester_id: str, period_rows: List[List]) -> CourseSe
 last_parsed = datetime.now()
 
 
+def determine_times(start_time_raw: str, end_time_raw: str) -> Tuple[str, str]:
+    """Determine hh:mm format of inconsistent time strings like (4:00, 5:50PM)"""
+    try:
+        start_hours, start_minutes = map(int, start_time_raw.split(":"))
+        end_hours, end_minutes = map(int, end_time_raw.replace(
+            "AM", "").replace("PM", "").split(":"))
+    except:
+        return (None, None)
+
+    # Determine meridiems
+    if "PM" in end_time_raw:
+        if end_hours < 12:
+            end_hours += 12
+
+        if start_hours + 12 <= end_hours:
+            start_hours += 12
+
+    return (
+        f"{str(start_hours).zfill(2)}:{str(start_minutes).zfill(2)}",
+        f"{str(end_hours).zfill(2)}:{str(end_minutes).zfill(2)}"
+    )
+
+
 def parse(semester_id: str) -> List[CourseSection]:
-    # if datetime.now() - last_parsed > 100:
+    # Download page
+    print("Downloading schedule page... ", end="", flush=True)
+    page = requests.get(schedule_url_base + semester_id + ".htm")
+    doc = lxml.html.fromstring(page.content)
+    print("Done.")
+    rows = doc.xpath('//tr[@align = "LEFT"]')
 
     course_sections = []
     last_id = None
