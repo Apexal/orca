@@ -1,4 +1,4 @@
-from .models import CourseSection, CourseSectionPeriod
+from .models import ClassTypeEnum, CourseSection, CourseSectionPeriod
 from typing import List, Optional
 from datetime import date, datetime
 import lxml.html
@@ -18,28 +18,41 @@ day_letters = {
     "F": 5
 }
 
+class_types = {
+    'SEM': ClassTypeEnum.SEMINAR,
+    'TES': ClassTypeEnum.TEST,
+    'LEC': ClassTypeEnum.LECTURE,
+    'REC': ClassTypeEnum.RECITATION,
+    'LAB': ClassTypeEnum.LAB,
+    'STU': ClassTypeEnum.STUDIO
+}
+
+
 def sanitize(str: str) -> str:
     '''Sanitize a string by stripping whitespace on edges and in between.'''
     # TODO: strip middle whitespace
-    return str.strip()
+    return ' '.join(str.strip().split())
 
 
-def create_period(values: List[str]) -> CourseSectionPeriod:
+def create_period(semester_id: str, crn: str, values: List[str]) -> CourseSectionPeriod:
     days_raw = values[6]
     days = []
     if days_raw:
-        days = list(map(lambda day_letter: day_letters[day_letter], filter(lambda v: v != " ", days_raw)))
-    
+        days = list(map(lambda day_letter: day_letters[day_letter], filter(
+            lambda v: v != " ", days_raw)))
+
     return CourseSectionPeriod(
-        class_type=values[2],
+        crn=crn,
+        semester_id=semester_id,
+        class_type=class_types[values[2]] if values[2] else None,
         start_time='hh:mm a',
         end_time='hh:mm a',
-        instructor=values[9],
+        instructors=values[9].split('/'),
         days=days
     )
 
 
-def create_course_section(period_rows: List[List]) -> CourseSection:
+def create_course_section(semester_id: str, period_rows: List[List]) -> CourseSection:
     first_row = period_rows[0]
     crn, subject_prefix, subject_code, section_id = re.split(
         ' |-', first_row[0])
@@ -52,13 +65,15 @@ def create_course_section(period_rows: List[List]) -> CourseSection:
     else:
         credits = [int(credits_raw)]
 
-    course = CourseSection(subject_prefix=subject_prefix, subject_code=subject_code,
-                           title=title, section_id=section_id, crn=crn, instruction_method=instruction_method, credits=credits, periods=[create_period(period_row) for period_row in period_rows], max_enrollments=max_enrollments, enrollments=enrollments, textbook_url=textbook_url)
+    course = CourseSection(semester_id=semester_id, course_subject_prefix=subject_prefix, course_number=subject_code,
+                           course_title=title, section_id=section_id, crn=crn, instruction_method=instruction_method, credits=credits, periods=[create_period(semester_id, crn, period_row) for period_row in period_rows], max_enrollments=max_enrollments, enrollments=enrollments, textbook_url=textbook_url)
     return course
+
 
 last_parsed = datetime.now()
 
-def parse() -> List[CourseSection]:
+
+def parse(semester_id: str) -> List[CourseSection]:
     # if datetime.now() - last_parsed > 100:
 
     course_sections = []
@@ -79,7 +94,8 @@ def parse() -> List[CourseSection]:
 
         if all([val is None for val in all_values]):
             if len(period_rows) > 0:
-                course_sections.append(create_course_section(period_rows))
+                course_sections.append(
+                    create_course_section(semester_id, period_rows))
 
             period_rows = []
             continue
@@ -94,6 +110,10 @@ def parse() -> List[CourseSection]:
                 # Haven't reached the first section row yet!
                 continue
 
+            # Skip "NOTE:" rows
+            if all_values[1]:
+                continue
+
             # More periods
             period_rows.append(all_values)
         else:
@@ -101,9 +121,10 @@ def parse() -> List[CourseSection]:
 
             last_id = id
             if len(period_rows) > 0:
-                course_sections.append(create_course_section(period_rows))
+                course_sections.append(
+                    create_course_section(semester_id, period_rows))
             period_rows = [all_values]
     if len(period_rows) > 0:
-        course_sections.append(create_course_section(period_rows))
+        course_sections.append(create_course_section(semester_id, period_rows))
 
     return course_sections
