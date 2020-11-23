@@ -25,6 +25,8 @@ class CourseSectionPeriod(BaseModel):
         None, description="24-hour 0-padded end time hh:mm format (RPI time)", example="15:50")
     instructors: List[str] = Field(
         description="Last names of instructor(s)", example=["Hanna", "Shablovsky"])
+    location: Optional[str] = Field(
+        description="Location of class (null if not yet determined or online)", example="SAGE 114")
     days: List[int] = Field(
         description="Days of week period meets (0-Sunday", example=[1, 4])
 
@@ -37,6 +39,7 @@ class CourseSectionPeriod(BaseModel):
             'start_time': self.start_time,
             'end_time': self.end_time,
             'instructors': '/'.join(self.instructors),
+            'location': self.location,
             'days': ','.join(map(str, self.days))
         }
 
