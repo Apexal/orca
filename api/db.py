@@ -81,3 +81,26 @@ def _raw_to_course_section_period(raw: Dict[str, Any]) -> CourseSectionPeriod:
         raw['days'] = list(map(int, raw['days'].split(',')))
 
     return CourseSectionPeriod(**raw)
+
+
+def fetch_courses(semester_id: str):
+    c = conn.cursor()
+    c.execute("""
+        select
+            cs.course_subject_prefix ,
+            cs.course_number,
+            cs.course_title,
+            count(cs.crn) as period_count
+        from
+            course_sections cs
+        where
+            cs.semester_id = %s
+        group by
+            (cs.course_subject_prefix,
+            cs.course_number,
+            cs.course_title,
+            cs.semester_id)
+        order by
+            cs.course_subject_prefix,
+            cs.course_number""", (semester_id,))
+    return c.fetchall()
