@@ -11,6 +11,7 @@ lxml = "*"
 psycopg2 = "*"
 python-dotenv = "*"
 requests = "*"
+uvicorn = "*"
 
 [requires]
 python_version = "3.8"
