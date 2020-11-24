@@ -113,6 +113,10 @@ async def get_sections(
                                 example='202101', description="The id of the semester, determined by the Registrar. Comprises the 4-digit starting year and 2-digit starting month of a semester and then <b>if Summer</b> a 2-digit indicator of which section. e.g. <ul><li><code>202101</code> - Spring 2021</li><li><code>202109</code> - Fall 2021</li><li><code>20210501</code> - Summer Full Term</li></ul>"),
         crns: Optional[List[CRN]] = Query(
             None, description="The direct CRNs of the course sections to fetch. If present, no other search parameters can be set and `limit` and `offset` are ignored.", example=["42608"]),
+        course_subject_prefix: Optional[str] = Query(None),
+        course_number: Optional[str] = Query(None),
+        course_title: Optional[str] = Query(None),
+        has_seats: Optional[bool] = Query(None),
         limit: int = Query(
             100, description="The maximum number of course sections to return in the response."),
         offset: int = Query(0, description="The number of course sections in the response to skip.")):
@@ -125,4 +129,13 @@ async def get_sections(
     if crns:
         # If CRNs are given, no other search queries should be passed
         sections = fetch_course_sections(semester_id, crns)
+    else:
+        sections = search_course_sections(
+            semester_id,
+            limit,
+            offset,
+            course_subject_prefix=course_subject_prefix,
+            course_number=course_number,
+            course_title=course_title,
+            has_seats=has_seats)
     return sections
