@@ -6,13 +6,21 @@ from typing import List, Optional
 
 from fastapi import FastAPI
 from fastapi.params import Path, Query
-
+from fastapi.middleware.cors import CORSMiddleware
 
 # Initialize FastAPI
 app = FastAPI(
     title='Open-source RPI Course API',
     description='ORCA is an API for querying the Registrar\'s semesterly course listings.',
     version='0.1.0'
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 CRN = constr(regex="^[0-9]{5}$")
