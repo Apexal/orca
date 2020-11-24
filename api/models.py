@@ -35,8 +35,13 @@ class CourseSectionPeriod(BaseModel):
         '''Creates a CourseSectionPeriod from a DB record.'''
         if record['instructors']:
             record['instructors'] = record['instructors'].split('/')
+        else:
+            record['instructors'] = []
+
         if record['days']:
             record['days'] = list(map(int, record['days'].split(',')))
+        else:
+            record['days'] = []
 
         return CourseSectionPeriod(**record)
 
