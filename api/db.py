@@ -51,14 +51,16 @@ def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
         'SELECT * FROM course_sections WHERE semester_id=%s AND crn = ANY(%s)', (semester_id, crns))
     records = c.fetchall()
 
-    sections = []
-    for record in records:
-        periods = fetch_course_section_periods(
-            semester_id, record["crn"])
+    return records_to_sections(semester_id, records)
 
-        sections.append(CourseSection.from_record(record, periods))
 
-    return sections
+def search_course_sections(semester_id: str, limit: int, offset: int, **search):
+    c = conn.cursor()
+    c.execute("SELECT * FROM course_sections WHERE semester_id=%s LIMIT %s OFFSET %s",
+              (semester_id, limit, offset))
+    records = c.fetchall()
+
+    return records_to_sections(semester_id, records)
 
 
 def fetch_course_section_periods(semester_id: str, crn: str) -> List[CourseSectionPeriod]:
@@ -91,3 +93,13 @@ def fetch_courses(semester_id: str):
             cs.course_subject_prefix,
             cs.course_number""", (semester_id,))
     return c.fetchall()
+
+
+def records_to_sections(semester_id: str, records: List[Dict]) -> List[CourseSection]:
+    sections = []
+    for record in records:
+        periods = fetch_course_section_periods(
+            semester_id, record["crn"])
+
+        sections.append(CourseSection.from_record(record, periods))
+    return sections
