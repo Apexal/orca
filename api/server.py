@@ -80,7 +80,7 @@ Please report these on the GitHub repo at [Apexa/orca](https://github.com/Apexal
 app = FastAPI(
     title='Open-source RPI Course API',
     description=description,
-    version='0.1.0'
+    version='0.1.1'
 )
 
 # Allow requests from all origins

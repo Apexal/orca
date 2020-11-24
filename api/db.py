@@ -11,9 +11,13 @@ import os
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
-COURSE_SECTIONS_TABLE = Table('course_sections')
-BASE_COURSE_SECTIONS_QUERY: QueryBuilder = Query.from_(Table('course_sections')).select(
-    '*').orderby('course_subject_prefix').orderby('course_number').orderby('section_id')
+course_sections_t = Table('course_sections')
+course_sections_q: QueryBuilder = Query.from_(course_sections_t).select(
+    '*').orderby(course_sections_t.course_subject_prefix).orderby(course_sections_t.course_number).orderby(course_sections_t.section_id)
+
+periods_t = Table('course_section_periods')
+periods_q: QueryBuilder = Query.from_(periods_t).select('*')
+
 
 conn = psycopg2.connect(
     os.environ["POSTGRES_DSN"], cursor_factory=RealDictCursor)
@@ -56,43 +60,63 @@ def update_course_sections(semester_id: str, course_sections: List[CourseSection
 def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
     c = conn.cursor()
 
-    # Create query
-    q: QueryBuilder = BASE_COURSE_SECTIONS_QUERY.where(
-        COURSE_SECTIONS_TABLE.semester_id == semester_id
-    ).where(COURSE_SECTIONS_TABLE.crn.isin(crns))
+    # Create query to fetch course sections
+    q: QueryBuilder = course_sections_q.where(
+        course_sections_t.semester_id == semester_id
+    ).where(course_sections_t.crn.isin(crns))
 
     c.execute(q.get_sql())
+    course_section_records = c.fetchall()
 
-    records = c.fetchall()
+    # BIG BRAIN MOVE:
+    # Instead of making a separate query for each section's periods, fetch them all first and them associate them with their section
+    q: QueryBuilder = periods_q.where(
+        periods_t.semester_id == semester_id
+    ).where(periods_t.crn.isin(crns))
 
-    return records_to_sections(semester_id, records)
+    c.execute(q.get_sql())
+    period_records = c.fetchall()
+
+    # Match the periods fetched to their course section records!
+    sections = []
+    for record in course_section_records:
+        # Find period records for this course section
+        section_period_records = filter(
+            lambda pr: pr["crn"] == record["crn"], period_records)
+        # Turn those period records into CourseSectionPeriods
+        periods = list(
+            map(CourseSectionPeriod.from_record, section_period_records))
+        # Add created CourseSection
+        sections.append(CourseSection.from_record(record, periods))
+
+    return sections
 
 
 def search_course_sections(semester_id: str, limit: int, offset: int, **search):
     c = conn.cursor()
 
-    q: QueryBuilder = BASE_COURSE_SECTIONS_QUERY.where(
-        COURSE_SECTIONS_TABLE.semester_id == semester_id
+    q: QueryBuilder = course_sections_q.where(
+        course_sections_t.semester_id == semester_id
     ).limit(limit).offset(offset)
 
     # Values that require exact matches
     for col in ['course_number', 'course_subject_prefix']:
         if search[col]:
-            q = q.where(COURSE_SECTIONS_TABLE[col] == search[col])
+            q = q.where(course_sections_t[col] == search[col])
 
     # Values that require wildcards
     for col in ['course_title']:
         if search[col]:
-            q = q.where(COURSE_SECTIONS_TABLE[col].ilike(f'%{search[col]}%'))
+            q = q.where(course_sections_t[col].ilike(f'%{search[col]}%'))
 
     # Special values that require complex checks
     if search['has_seats'] == False:
-        q = q.where(COURSE_SECTIONS_TABLE.enrollments >=
-                    COURSE_SECTIONS_TABLE.max_enrollments)
+        q = q.where(course_sections_t.enrollments >=
+                    course_sections_t.max_enrollments)
 
     if search['has_seats'] == True:
-        q = q.where(COURSE_SECTIONS_TABLE.enrollments <
-                    COURSE_SECTIONS_TABLE.max_enrollments)
+        q = q.where(course_sections_t.enrollments <
+                    course_sections_t.max_enrollments)
 
     c.execute(q.get_sql())
     records = c.fetchall()
