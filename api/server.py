@@ -1,7 +1,7 @@
 from pydantic.types import constr
 from api.models import CourseSection
 from .parse import parse
-from .db import fetch_course_sections, update_course_sections
+from .db import fetch_course_sections, search_course_sections, update_course_sections
 from typing import List, Optional
 
 from fastapi import FastAPI
@@ -15,6 +15,7 @@ app = FastAPI(
     version='0.1.0'
 )
 
+# Allow requests from all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,7 +32,7 @@ CRN = constr(regex="^[0-9]{5}$")
 async def update_sections(semester_id: str):
     course_sections = parse(semester_id)
     update_course_sections(semester_id, course_sections)
-    return 'Good!'
+    return 'Updated'
 
 
 @app.get("/{semester_id}/sections",
