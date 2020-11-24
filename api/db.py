@@ -54,15 +54,10 @@ def fetch_course_section(semester_id: str, crn: str) -> CourseSection:
     if course_section_raw is None:
         return None
 
-    course_section_raw['periods'] = fetch_course_section_periods(
+    periods = fetch_course_section_periods(
         semester_id, crn)
 
-    if course_section_raw['credits']:
-        course_section_raw['credits'] = list(
-            map(int, course_section_raw["credits"].split(",")))
-
-    return CourseSection(
-        **course_section_raw)
+    return CourseSection.from_record(course_section_raw, periods)
 
 
 def fetch_course_section_periods(semester_id: str, crn: str) -> List[CourseSectionPeriod]:
@@ -71,16 +66,7 @@ def fetch_course_section_periods(semester_id: str, crn: str) -> List[CourseSecti
         'SELECT * FROM course_section_periods WHERE semester_id=%s and crn=%s', (semester_id, crn))
     course_section_periods_raw = c.fetchall()
 
-    return list(map(_raw_to_course_section_period, course_section_periods_raw))
-
-
-def _raw_to_course_section_period(raw: Dict[str, Any]) -> CourseSectionPeriod:
-    if raw['instructors']:
-        raw['instructors'] = raw['instructors'].split('/')
-    if raw['days']:
-        raw['days'] = list(map(int, raw['days'].split(',')))
-
-    return CourseSectionPeriod(**raw)
+    return list(map(CourseSectionPeriod.from_record, course_section_periods_raw))
 
 
 def fetch_courses(semester_id: str):

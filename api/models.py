@@ -30,6 +30,16 @@ class CourseSectionPeriod(BaseModel):
     days: List[int] = Field(
         description="Days of week period meets (0-Sunday", example=[1, 4])
 
+    @staticmethod
+    def from_record(record: Dict[str, Any]):
+        '''Creates a CourseSectionPeriod from a DB record.'''
+        if record['instructors']:
+            record['instructors'] = record['instructors'].split('/')
+        if record['days']:
+            record['days'] = list(map(int, record['days'].split(',')))
+
+        return CourseSectionPeriod(**record)
+
     def to_record(self) -> Dict[str, Any]:
         '''Convert period to flat dictionary to store in DB.'''
         return {
@@ -57,6 +67,17 @@ class CourseSection(BaseModel):
     max_enrollments: int = Field(example=150)
     enrollments: int = Field(example=148)
     textbooks_url: Optional[str] = None
+
+    @staticmethod
+    def from_record(record: Dict[str, Any], periods: List[CourseSectionPeriod]):
+        '''Creates a CourseSection from a DB record.'''
+        record['periods'] = periods
+
+        if record['credits']:
+            record['credits'] = list(
+                map(int, record["credits"].split(",")))
+
+        return CourseSection(**record)
 
     def to_record(self) -> Dict[str, Any]:
         '''Convert period to flat dictionary to store in DB.'''
