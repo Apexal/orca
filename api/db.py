@@ -45,19 +45,20 @@ def update_course_sections(semester_id: str, course_sections: List[CourseSection
     conn.commit()
 
 
-def fetch_course_section(semester_id: str, crn: str) -> CourseSection:
+def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
     c = conn.cursor()
     c.execute(
-        'SELECT * FROM course_sections WHERE semester_id=%s AND crn=%s', (semester_id, crn))
-    course_section_raw = c.fetchone()
+        'SELECT * FROM course_sections WHERE semester_id=%s AND crn = ANY(%s)', (semester_id, crns))
+    records = c.fetchall()
 
-    if course_section_raw is None:
-        return None
+    sections = []
+    for record in records:
+        periods = fetch_course_section_periods(
+            semester_id, record["crn"])
 
-    periods = fetch_course_section_periods(
-        semester_id, crn)
+        sections.append(CourseSection.from_record(record, periods))
 
-    return CourseSection.from_record(course_section_raw, periods)
+    return sections
 
 
 def fetch_course_section_periods(semester_id: str, crn: str) -> List[CourseSectionPeriod]:

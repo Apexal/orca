@@ -1,7 +1,7 @@
 from pydantic.types import constr
 from api.models import CourseSection
 from .parse import parse
-from .db import fetch_course_section, update_course_sections
+from .db import fetch_course_sections, update_course_sections
 from typing import List, Optional
 
 from fastapi import FastAPI
@@ -55,6 +55,5 @@ async def get_sections(
     # Determine which filters to apply
     if crns:
         # If CRNs are given, no other search queries should be passed
-        sections = list(
-            map(lambda crn: fetch_course_section(semester_id, crn), crns))[offset:offset+limit]
+        sections = fetch_course_sections(semester_id, crns)
     return sections
