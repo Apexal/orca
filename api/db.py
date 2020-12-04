@@ -2,7 +2,7 @@ from typing import Any, List, Dict
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from pypika.enums import Order
-from .models import CourseSection, CourseSectionPeriod
+from .models import Course, CourseSection, CourseSectionPeriod
 
 from pypika import Query, Table, Field
 from pypika.queries import QueryBuilder
@@ -12,8 +12,11 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 course_sections_t = Table('course_sections')
-course_sections_q: QueryBuilder = Query.from_(course_sections_t).select(
-    '*').orderby(course_sections_t.course_subject_prefix).orderby(course_sections_t.course_number).orderby(course_sections_t.section_id)
+course_sections_q: QueryBuilder = Query \
+    .from_(course_sections_t) \
+    .orderby(course_sections_t.course_subject_prefix) \
+    .orderby(course_sections_t.course_number) \
+    # .orderby(course_sections_t.section_id) \
 
 periods_t = Table('course_section_periods')
 periods_q: QueryBuilder = Query.from_(periods_t).select('*')
@@ -61,9 +64,10 @@ def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
     c = conn.cursor()
 
     # Create query to fetch course sections
-    q: QueryBuilder = course_sections_q.where(
-        course_sections_t.semester_id == semester_id
-    ).where(course_sections_t.crn.isin(crns))
+    q: QueryBuilder = course_sections_q \
+        .select('*') \
+        .where(course_sections_t.semester_id == semester_id) \
+        .where(course_sections_t.crn.isin(crns))
 
     c.execute(q.get_sql())
     course_section_records = c.fetchall()
@@ -95,9 +99,10 @@ def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
 def search_course_sections(semester_id: str, limit: int, offset: int, **search):
     c = conn.cursor()
 
-    q: QueryBuilder = course_sections_q.where(
-        course_sections_t.semester_id == semester_id
-    ).limit(limit).offset(offset)
+    q: QueryBuilder = course_sections_q \
+        .select('*') \
+        .where(course_sections_t.semester_id == semester_id) \
+        .limit(limit).offset(offset)
 
     # Values that require exact matches
     for col in ['course_number', 'course_subject_prefix']:
@@ -133,26 +138,57 @@ def fetch_course_section_periods(semester_id: str, crn: str) -> List[CourseSecti
     return list(map(CourseSectionPeriod.from_record, course_section_periods_raw))
 
 
-def fetch_courses(semester_id: str):
+def fetch_courses_with_sections(semester_id: str, limit: int, offset: int, **search) -> List[Course]:
     c = conn.cursor()
-    c.execute("""
-        select
-            cs.course_subject_prefix ,
-            cs.course_number,
-            cs.course_title,
-            count(cs.crn) as period_count
-        from
-            course_sections cs
-        where
-            cs.semester_id = %s
-        group by
-            (cs.course_subject_prefix,
-            cs.course_number,
-            cs.course_title,
-            cs.semester_id)
-        order by
-            cs.course_subject_prefix,
-            cs.course_number""", (semester_id,))
+
+    print("Start...")
+    # Fetch course sections then manually aggregate them with sections and periods
+    q: QueryBuilder = course_sections_q \
+        .select('*') \
+        .where(course_sections_t.semester_id == semester_id) \
+        .orderby('section_id') \
+        .limit(limit).offset(offset)
+
+    c.execute(q.get_sql())
+    records = c.fetchall()
+    print("Fetched!")
+    courses = dict()
+    for record in records:
+        key = (record["course_subject_prefix"],
+               record["course_number"], record["course_title"])
+
+        if key not in courses:
+            courses[key] = Course(semester_id=semester_id,
+                                  subject_prefix=record["course_subject_prefix"],
+                                  number=record["course_number"],
+                                  title=record["course_title"],
+                                  sections=[]
+                                  )
+        periods = fetch_course_section_periods(semester_id, record["crn"])
+
+        courses[key].sections.append(
+            CourseSection.from_record(record, periods))
+
+    return list(courses.values())
+
+
+def fetch_courses_without_sections(semester_id: str, limit: int, offset: int, **search) -> Dict[str, Any]:
+    c = conn.cursor()
+
+    q: QueryBuilder = course_sections_q \
+        .select(course_sections_t.semester_id) \
+        .select(course_sections_t.course_subject_prefix.as_('subject_prefix')) \
+        .select(course_sections_t.course_number.as_('number')) \
+        .select(course_sections_t.course_title.as_('title')) \
+        .where(course_sections_t.semester_id == semester_id) \
+        .limit(limit).offset(offset) \
+        .groupby(course_sections_t.semester_id) \
+        .groupby(course_sections_t.course_subject_prefix) \
+        .groupby(course_sections_t.course_number) \
+        .groupby(course_sections_t.course_title)
+
+    print(q)
+    c.execute(q.get_sql())
     return c.fetchall()
 
 

@@ -102,3 +102,11 @@ class CourseSection(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.crn}: {self.course_subject_prefix}-{self.course_code}-{self.section_id} {self.course_title} w/ {len(self.periods)} periods"
+
+
+class Course(BaseModel):
+    semester_id: str = Field(example="202101")
+    subject_prefix: str = Field(example="BIOL")
+    number: str = Field(example="1010")
+    title: str = Field(example="INTRODUCTION TO BIOLOGY")
+    sections: Optional[List[CourseSection]] = Field()
