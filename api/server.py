@@ -3,6 +3,7 @@ from api.models import Course, CourseSection
 from .parse import parse
 from .db import fetch_course_sections, fetch_courses_with_sections, fetch_courses_without_sections, search_course_sections, update_course_sections
 from typing import List, Optional
+from api import api_version
 
 from fastapi import FastAPI
 from fastapi.params import Path, Query
@@ -15,7 +16,7 @@ with open('README.md') as f:
 app = FastAPI(
     title='Open-source RPI Course API',
     description=description,
-    version='0.1.1'
+    version=api_version
 )
 
 # Allow requests from all origins
