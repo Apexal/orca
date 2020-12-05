@@ -28,7 +28,7 @@ class CourseSectionPeriod(BaseModel):
     location: Optional[str] = Field(
         description="Location of class (null if not yet determined or online)", example="SAGE 114")
     days: List[int] = Field(
-        description="Days of week period meets (0-Sunday", example=[1, 4])
+        description="Days of week period meets (0-Sunday)", example=[1, 4])
 
     @staticmethod
     def from_record(record: Dict[str, Any]):
