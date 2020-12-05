@@ -21,6 +21,8 @@ class Column:
     TITLE = 7
     DAYS = 8
     TIME = 9
+    CAP = 10
+    ACTUAL = 11
     INSTRUCTOR = 19
     DATE = 20
     LOCATION = 21
@@ -132,8 +134,8 @@ class SIS:
                     crn=values[Column.CRN],
                     instruction_method=values[Column.ATTRIBUTE],
                     credits=credits,
-                    max_enrollments=-1,
-                    enrollments=-1,
+                    max_enrollments=int(values[Column.CAP]),
+                    enrollments=int(values[Column.ACTUAL]),
                     periods=[],
                 )
                 last_crn = values[Column.CRN]
@@ -154,6 +156,10 @@ class SIS:
             days = list(
                 map(lambda letter: SIS.DAY_LETTERS[letter], values[Column.DAYS])
             )
+        
+        instructors = []
+        if values[Column.INSTRUCTOR] is not None:
+            instructors = values[Column.INSTRUCTOR].replace(" (P)", "").split(", ")
 
         return CourseSectionPeriod(
             semester_id=semester_id,
@@ -161,9 +167,7 @@ class SIS:
             class_type="lecture",
             start_time=start_time,
             end_time=end_time,
-            instructors=[values[Column.INSTRUCTOR]]
-            if values[Column.INSTRUCTOR]
-            else [],
+            instructors=instructors,
             location=values[Column.LOCATION],
             days=days,
         )

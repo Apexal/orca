@@ -51,7 +51,7 @@ async def update_sections(semester_id: str, api_key: str):
 
     sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"])
     sis.login()
-    course_sections = sis.fetch_course_sections(semester_id)
+    course_sections = sis.fetch_course_sections(semester_id, subjects=["CSCI"])
     update_course_sections(semester_id, course_sections)
     return {
         "update_count": len(course_sections)
