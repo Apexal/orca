@@ -29,15 +29,10 @@ conn = psycopg2.connect(os.environ["POSTGRES_DSN"], cursor_factory=RealDictCurso
 def update_course_sections(semester_id: str, course_sections: List[CourseSection]):
     c = conn.cursor()
 
-    c.execute("DELETE FROM course_section_periods")
-    c.execute("DELETE FROM course_sections")
-    # # c.execute(
-    # #     'UPDATE course_sections SET removed=true WHERE semester_id=%s', (semester_id,))
-    # c.execute('SELECT crn FROM course_sections WHERE semester_id=%s',
-    #           (semester_id,))
-
-    # existing_crns = c.fetchall()
-
+    c.execute("DELETE FROM course_section_periods WHERE semester_id=%s", (semester_id,))
+    c.execute("DELETE FROM course_sections WHERE semester_id=%s", (semester_id,))
+    
+    print(f"Adding {len(course_sections)} sections")
     for course_section in course_sections:
         record = course_section.to_record()
 
@@ -204,7 +199,6 @@ def fetch_courses_without_sections(
         .groupby(course_sections_t.course_title)
     )
 
-    print(q)
     c.execute(q.get_sql())
     return c.fetchall()
 

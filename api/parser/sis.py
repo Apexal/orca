@@ -96,10 +96,9 @@ class SIS:
             2:
         ]  # Skip first two heading rows
 
-        last_crn = ""
+        last_crn = "start"
         sections = dict()
         for tr in section_rows:
-            print("last_crn =", last_crn)
             # Each TD can have different elements in it
             # _extract_td_value will properly determine the string values or return None for empty
             tds = tr.xpath("td")
@@ -110,16 +109,17 @@ class SIS:
             while i < len(tds):
                 if tds[i].xpath("@colspan"):
                     # Need to add another empty td
-                    tds.insert(i+1, etree.Element('td'))
+                    tds.insert(i + 1, etree.Element("td"))
                 i += 1
             values = list(map(SIS._extract_td_value, tds))
-            period = SIS._create_course_section_period(semester_id, last_crn, values)
 
             if values[Column.CRN] is not None and values[Column.CRN] != last_crn:
                 # New section
                 if "-" in values[Column.CREDITS]:
-                    min_credits, max_credits = map(int, map(float, values[Column.CREDITS].split("-")))
-                    credits = list(range(min_credits, max_credits+1))
+                    min_credits, max_credits = map(
+                        int, map(float, values[Column.CREDITS].split("-"))
+                    )
+                    credits = list(range(min_credits, max_credits + 1))
                 else:
                     credits = [int(float(values[Column.CREDITS]))]
 
@@ -134,23 +134,26 @@ class SIS:
                     credits=credits,
                     max_enrollments=-1,
                     enrollments=-1,
-                    periods=[period]
+                    periods=[],
                 )
                 last_crn = values[Column.CRN]
-                period.crn = last_crn
-            elif values[Column.CRN] is None:
-                # Another row for current section with crn last_crn
-                sections[last_crn].periods.append(period)
 
-        return sections.values()
+            period = SIS._create_course_section_period(semester_id, last_crn, values)
+            sections[last_crn].periods.append(period)
+
+        return list(sections.values())
 
     @staticmethod
-    def _create_course_section_period(semester_id: str, crn: str, values: List[Optional[str]]) -> CourseSectionPeriod:
+    def _create_course_section_period(
+        semester_id: str, crn: str, values: List[Optional[str]]
+    ) -> CourseSectionPeriod:
         start_time, end_time = SIS._determine_times(values[Column.TIME])
 
         days = []
         if values[Column.DAYS] is not None:
-            days = list(map(lambda letter: SIS.DAY_LETTERS[letter], values[Column.DAYS]))
+            days = list(
+                map(lambda letter: SIS.DAY_LETTERS[letter], values[Column.DAYS])
+            )
 
         return CourseSectionPeriod(
             semester_id=semester_id,
@@ -158,7 +161,9 @@ class SIS:
             class_type="lecture",
             start_time=start_time,
             end_time=end_time,
-            instructors=[values[Column.INSTRUCTOR]] if values[Column.INSTRUCTOR] else [],
+            instructors=[values[Column.INSTRUCTOR]]
+            if values[Column.INSTRUCTOR]
+            else [],
             location=values[Column.LOCATION],
             days=days,
         )
@@ -167,10 +172,7 @@ class SIS:
     def _create_course_section(
         semester_id: str, periods: List[CourseSectionPeriod]
     ) -> CourseSection:
-        return CourseSection(
-            semester_id=semester_id,
-            periods=periods
-        )
+        return CourseSection(semester_id=semester_id, periods=periods)
 
     @staticmethod
     def _to_24_hour_time(time: str) -> str:
