@@ -4,27 +4,28 @@ lists ALL course sections for a particular semester.
 """
 
 from enum import Enum
-from api.models import CourseSection
-from typing import Any, Dict, List, Optional
+from api.models import CourseSection, CourseSectionPeriod
+from typing import Any, Dict, List, Optional, Tuple
 import requests
 import lxml.html
+
+
+class Column:
+    CRN = 1
+    SUBJECT = 2
+    CRSE = 3
+    SECTION = 4
+    CAMPUS = 5
+    CREDITS = 6
+    TITLE = 7
+    DAYS = 8
+    TIME = 9
 
 
 class SIS:
     LOGIN_URL = "https://cas-auth-ent.rpi.edu/cas/login?service=https://bannerapp04-bnrprd.server.rpi.edu:443/ssomanager/c/SSB"
     START_SEARCH_URL = "https://sis.rpi.edu/rss/bwckgens.p_proc_term_date"
     COURSE_SEARCH_URL = "https://sis.rpi.edu/rss/bwskfcls.P_GetCrse_Advanced"
-
-    class Column:
-        CRN = 1
-        SUBJECT = 2
-        CRSE = 3
-        SECTION = 4
-        CAMPUS = 5
-        CREDITS = 6
-        TITLE = 7
-        DAYS = 8
-        TIME = 9
 
     def __init__(self, rin: str, pin: str) -> None:
         self.rin = rin
@@ -75,26 +76,79 @@ class SIS:
         if subjects is None:
             subjects = self.fetch_subjects(semester_id)
 
+        # Submit search page and parse document
         course_sections_page = self.session.get(
             SIS.COURSE_SEARCH_URL,
             params=self._create_search_params(semester_id, subjects),
         )
-        # print(course_sections_page.content)
         tree = lxml.html.fromstring(course_sections_page.content)
 
         # Query for all rows in the sections table
         section_rows = tree.xpath(
             "//table[./caption[contains(text(), 'Sections Found')]]//tr"
-        )
+        )[
+            2:
+        ]  # Skip first two heading rows
+
+        last_crn = None
+        sections = dict()
         for tr in section_rows:
-            tds = tr.xpath("td")
-            if len(tds) == 0:
-                continue
             # Each TD can have different elements in it
             # _extract_td_value will properly determine the string values or return None for empty
-            values = list(map(SIS._extract_td_value, tds))
+            values = list(map(SIS._extract_td_value, tr.xpath("td")))
 
-        return course_sections_page
+            if last_crn is None:
+                # First listed section
+                pass
+            elif values[Column.CRN] is None:
+                # Another row for current section
+                pass
+            else:
+                # New section
+                sections[values[Column.CRN]] = CourseSection()
+                last_crn = values[Column.CRN]
+
+        return sections.values()
+
+    @staticmethod
+    def _create_course_section_period(semester_id: str, values) -> CourseSectionPeriod:
+        
+        start_time, end_time = SIS._determine_times(values[Column.TIME])
+        return CourseSectionPeriod(
+            semester_id=semester_id,
+            crn=values[Column.CRN],
+            start_time='',
+            end_time='',
+            instructor='',
+            location='',
+            days=[]
+        )
+
+    @staticmethod
+    def _create_course_section(
+        semester_id: str, period_rows: List[Dict]
+    ) -> CourseSection:
+        pass
+    
+    @staticmethod
+    def _to_24_hour_time(time: str) -> str:
+        hours, minutes = map(int, time.replace("am", "").replace("pm", "").split(":"))
+
+        if hours == 12 and "am" in time:
+            hours = 0
+        elif "pm" in time and hours != 12:
+            hours += 12
+        return f"{str(hours).zfill(2)}:{str(minutes).zfill(2)}"
+        
+
+    @staticmethod
+    def _determine_times(times: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+        if times is None:
+            return (None, None)
+        
+        # times = "10:10 am-12:00 pm"
+        # "10:10 am", "12:00 pm"
+        return tuple(map(SIS._to_24_hour_time, times.split("-")))
 
     @staticmethod
     def _sanitize(str: str) -> str:
@@ -104,7 +158,7 @@ class SIS:
     @staticmethod
     def _extract_td_value(td: Any) -> Optional[str]:
         val = td.xpath("descendant-or-self::*/text()")
-        
+
         if len(val):
             sanitized = SIS._sanitize("".join(val))
             if sanitized == "" or "TBA" in sanitized:
