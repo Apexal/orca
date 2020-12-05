@@ -25,15 +25,14 @@ def test_time_parsing():
     assert SIS._determine_times("10:10 am-12:00 pm") == ("10:10", "12:00")
 
 
-# def test_fetch_subjects():
-#     sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
-#     assert sis.login()
-#     subjects = sis.fetch_subjects('202001')
-#     print(subjects)
-#     assert len(subjects) > 0
+def test_fetch_subjects():
+    sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
+    assert sis.login()
+    subjects = sis.fetch_subjects('202001')
+    assert len(subjects) > 0
 
 def test_fetch_course_sections():
     sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
     assert sis.login()
-    r = sis.fetch_course_sections('202101', subjects=['ASTR'])
-    assert False
+    r = sis.fetch_course_sections('202101')
+    assert len(r)

@@ -8,6 +8,7 @@ from api.models import CourseSection, CourseSectionPeriod
 from typing import Any, Dict, List, Optional, Tuple
 import requests
 import lxml.html
+from lxml import etree
 
 
 class Column:
@@ -95,40 +96,65 @@ class SIS:
             2:
         ]  # Skip first two heading rows
 
-        last_crn = None
+        last_crn = ""
         sections = dict()
         for tr in section_rows:
+            print("last_crn =", last_crn)
             # Each TD can have different elements in it
             # _extract_td_value will properly determine the string values or return None for empty
-            values = list(map(SIS._extract_td_value, tr.xpath("td")))
-            period = SIS._create_course_section_period(semester_id, values)
+            tds = tr.xpath("td")
+            if len(tds) == 0:
+                continue
+            # Add empty values since SIS doesn't create a TD for them
+            i = 0
+            while i < len(tds):
+                if tds[i].xpath("@colspan"):
+                    # Need to add another empty td
+                    tds.insert(i+1, etree.Element('td'))
+                i += 1
+            values = list(map(SIS._extract_td_value, tds))
+            period = SIS._create_course_section_period(semester_id, last_crn, values)
 
-            print(period.json())
-
-            if last_crn is None:
-                # First listed section
-                pass
-            elif values[Column.CRN] is None:
-                # Another row for current section
-                pass
-            else:
+            if values[Column.CRN] is not None and values[Column.CRN] != last_crn:
                 # New section
-                sections[values[Column.CRN]] = CourseSection()
+                if "-" in values[Column.CREDITS]:
+                    min_credits, max_credits = map(int, map(float, values[Column.CREDITS].split("-")))
+                    credits = list(range(min_credits, max_credits+1))
+                else:
+                    credits = [int(float(values[Column.CREDITS]))]
+
+                sections[values[Column.CRN]] = CourseSection(
+                    semester_id=semester_id,
+                    course_subject_prefix=values[Column.SUBJECT],
+                    course_number=values[Column.CRSE],
+                    course_title=values[Column.TITLE],
+                    section_id=values[Column.SECTION],
+                    crn=values[Column.CRN],
+                    instruction_method=values[Column.ATTRIBUTE],
+                    credits=credits,
+                    max_enrollments=-1,
+                    enrollments=-1,
+                    periods=[period]
+                )
                 last_crn = values[Column.CRN]
+                period.crn = last_crn
+            elif values[Column.CRN] is None:
+                # Another row for current section with crn last_crn
+                sections[last_crn].periods.append(period)
 
         return sections.values()
 
     @staticmethod
-    def _create_course_section_period(semester_id: str, values) -> CourseSectionPeriod:
+    def _create_course_section_period(semester_id: str, crn: str, values: List[Optional[str]]) -> CourseSectionPeriod:
         start_time, end_time = SIS._determine_times(values[Column.TIME])
 
         days = []
-        if days is not None:
+        if values[Column.DAYS] is not None:
             days = list(map(lambda letter: SIS.DAY_LETTERS[letter], values[Column.DAYS]))
 
         return CourseSectionPeriod(
             semester_id=semester_id,
-            crn=values[Column.CRN],
+            crn=crn,
             class_type="lecture",
             start_time=start_time,
             end_time=end_time,

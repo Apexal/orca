@@ -57,6 +57,9 @@ class CourseSectionPeriod(BaseModel):
             'location': self.location,
             'days': ','.join(map(str, self.days))
         }
+    
+    def __str__(self) -> str:
+        return f"{self.class_type} on days {self.days} from {self.start_time}-{self.end_time} with {self.instructors} at {self.location}"
 
 
 class CourseSection(BaseModel):
@@ -101,7 +104,7 @@ class CourseSection(BaseModel):
         }
 
     def __str__(self) -> str:
-        return f"{self.crn}: {self.course_subject_prefix}-{self.course_code}-{self.section_id} {self.course_title} w/ {len(self.periods)} periods"
+        return f"{self.crn}: {self.course_subject_prefix}-{self.course_number}-{self.section_id} {self.course_title} w/ {len(self.periods)} periods"
 
 
 class Course(BaseModel):
