@@ -32,8 +32,8 @@ def test_time_parsing():
 #     print(subjects)
 #     assert len(subjects) > 0
 
-# def test_fetch_course_sections():
-#     sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
-#     assert sis.login()
-#     r = sis.fetch_course_sections('202101', subjects=['ASTR'])
-#     assert False
+def test_fetch_course_sections():
+    sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
+    assert sis.login()
+    r = sis.fetch_course_sections('202101', subjects=['ASTR'])
+    assert False
