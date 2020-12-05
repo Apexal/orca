@@ -140,3 +140,4 @@ cython_debug/
 out.*
 
 settings.json
+old_parse.py
