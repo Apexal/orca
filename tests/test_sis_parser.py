@@ -11,15 +11,15 @@ def test_bad_login():
     sis = SIS('1234567890', 'fake')
     assert not sis.login()
 
-def test_fetch_semester_subjects():
+def test_fetch_subjects():
     sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
     assert sis.login()
-    subjects = sis.fetch_semester_subjects('202001')
+    subjects = sis.fetch_subjects('202001')
     print(subjects)
     assert len(subjects) > 0
 
-def test_fetch_course_sections_page():
-    sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
-    assert sis.login()
-    r = sis.fetch_course_sections('202001')
-    assert False
+# def test_fetch_course_sections():
+#     sis = SIS(os.environ['SIS_RIN'], os.environ['SIS_PIN'])
+#     assert sis.login()
+#     r = sis.fetch_course_sections('202001', subjects=['ARTS'])
+#     assert False
