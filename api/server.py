@@ -40,7 +40,7 @@ CRN = constr(regex="^[0-9]{5}$")
 """A constrained string that must be a 5 digit number. All CRNs conform to this (I think)."""
 
 
-@app.post("/{semester_id}/sections/update", tags=["sections"])
+@app.post("/{semester_id}/sections/update", tags=["sections"], include_in_schema=False)
 async def update_sections(semester_id: str, api_key: str):
     """
     **ADMIN ONLY**

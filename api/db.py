@@ -150,6 +150,7 @@ def fetch_courses_with_sections(
         course_sections_q.select("*")
         .where(course_sections_t.semester_id == semester_id)
         .orderby("section_id")
+        # TODO: have these count for courses, not 
         .limit(limit)
         .offset(offset)
     )
