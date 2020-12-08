@@ -84,6 +84,8 @@ class CourseSection(BaseModel):
     periods: List[CourseSectionPeriod]
     max_enrollments: int = Field(example=150)
     enrollments: int = Field(example=148)
+    waitlist_max: int = Field(example=0)
+    waitlists: int = Field(example=0, description="The number of students on the waitlist.")
     textbooks_url: Optional[str] = None
 
     @staticmethod
@@ -109,6 +111,8 @@ class CourseSection(BaseModel):
             "credits": ",".join(map(str, self.credits)),
             "max_enrollments": self.max_enrollments,
             "enrollments": self.enrollments,
+            "waitlist_max": self.waitlist_max,
+            "waitlists": self.waitlists,
             "textbooks_url": self.textbooks_url,
         }
 

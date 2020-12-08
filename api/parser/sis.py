@@ -23,6 +23,8 @@ class Column:
     TIME = 9
     CAP = 10
     ACTUAL = 11
+    WL_CAP = 12
+    WL_ACTUAL = 13
     INSTRUCTOR = 19
     DATE = 20
     LOCATION = 21
@@ -117,27 +119,7 @@ class SIS:
 
             if values[Column.CRN] is not None and values[Column.CRN] != last_crn:
                 # New section
-                if "-" in values[Column.CREDITS]:
-                    min_credits, max_credits = map(
-                        int, map(float, values[Column.CREDITS].split("-"))
-                    )
-                    credits = list(range(min_credits, max_credits + 1))
-                else:
-                    credits = [int(float(values[Column.CREDITS]))]
-
-                sections[values[Column.CRN]] = CourseSection(
-                    semester_id=semester_id,
-                    course_subject_prefix=values[Column.SUBJECT],
-                    course_number=values[Column.CRSE],
-                    course_title=values[Column.TITLE],
-                    section_id=values[Column.SECTION],
-                    crn=values[Column.CRN],
-                    instruction_method=values[Column.ATTRIBUTE],
-                    credits=credits,
-                    max_enrollments=int(values[Column.CAP]),
-                    enrollments=int(values[Column.ACTUAL]),
-                    periods=[],
-                )
+                sections[values[Column.CRN]] = SIS._create_course_section(semester_id, values)
                 last_crn = values[Column.CRN]
 
             period = SIS._create_course_section_period(semester_id, last_crn, values)
@@ -174,9 +156,31 @@ class SIS:
 
     @staticmethod
     def _create_course_section(
-        semester_id: str, periods: List[CourseSectionPeriod]
+        semester_id: str, values: Dict
     ) -> CourseSection:
-        return CourseSection(semester_id=semester_id, periods=periods)
+        if "-" in values[Column.CREDITS]:
+            min_credits, max_credits = map(
+                int, map(float, values[Column.CREDITS].split("-"))
+            )
+            credits = list(range(min_credits, max_credits + 1))
+        else:
+            credits = [int(float(values[Column.CREDITS]))]
+
+        return CourseSection(
+            semester_id=semester_id,
+            course_subject_prefix=values[Column.SUBJECT],
+            course_number=values[Column.CRSE],
+            course_title=values[Column.TITLE],
+            section_id=values[Column.SECTION],
+            crn=values[Column.CRN],
+            instruction_method=values[Column.ATTRIBUTE],
+            credits=credits,
+            max_enrollments=int(values[Column.CAP]),
+            enrollments=int(values[Column.ACTUAL]),
+            waitlist_max=int(values[Column.WL_CAP]),
+            waitlists=int(values[Column.WL_ACTUAL]),
+            periods=[],
+        )
 
     @staticmethod
     def _to_24_hour_time(time: str) -> str:
