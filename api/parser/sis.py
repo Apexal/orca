@@ -6,7 +6,7 @@ lists ALL course sections for a particular semester.
 from api.parser import DAY_LETTERS
 from api.parser.utils import extract_td_value, sanitize
 from enum import Enum
-from api.models import CourseSection, CourseSectionPeriod
+from api.models import ClassTypeEnum, CourseSection, CourseSectionPeriod
 from typing import Any, Dict, List, Optional, Tuple
 import requests
 import lxml.html
@@ -38,9 +38,15 @@ class SIS:
     START_SEARCH_URL = "https://sis.rpi.edu/rss/bwckgens.p_proc_term_date"
     COURSE_SEARCH_URL = "https://sis.rpi.edu/rss/bwskfcls.P_GetCrse_Advanced"
 
-    def __init__(self, rin: str, pin: str) -> None:
+    def __init__(
+        self,
+        rin: str,
+        pin: str,
+        period_types: Optional[Dict[Tuple[str, int, str], ClassTypeEnum]] = None,
+    ) -> None:
         self.rin = rin
         self.pin = pin
+        self.period_types = period_types if period_types is not None else dict()
         self.session = requests.Session()  # Persistent session to make requests
 
     def login(self) -> bool:
@@ -123,14 +129,17 @@ class SIS:
                 )
                 last_crn = values[Column.CRN]
 
-            period = SIS._create_course_section_period(semester_id, last_crn, values)
+            period = SIS._create_course_section_period(semester_id, last_crn, values, self.period_types)
             sections[last_crn].periods.append(period)
 
         return list(sections.values())
 
     @staticmethod
     def _create_course_section_period(
-        semester_id: str, crn: str, values: List[Optional[str]]
+        semester_id: str,
+        crn: str,
+        values: List[Optional[str]],
+        period_types: Dict[Tuple[str, int, str], ClassTypeEnum],
     ) -> CourseSectionPeriod:
         start_time, end_time = SIS._determine_times(values[Column.TIME])
 
@@ -142,10 +151,16 @@ class SIS:
         if values[Column.INSTRUCTOR] is not None:
             instructors = values[Column.INSTRUCTOR].replace(" (P)", "").split(", ")
 
+        period_type = "lecture"
+        if len(days) > 0:
+            period_type_key = (crn, days[0], start_time)
+            if period_type_key in period_types:
+                period_type = period_types[(crn, days[0], start_time)]
+
         return CourseSectionPeriod(
             semester_id=semester_id,
             crn=crn,
-            class_type="lecture",
+            type=period_type,
             start_time=start_time,
             end_time=end_time,
             instructors=instructors,

@@ -18,7 +18,7 @@ class ClassTypeEnum(str, Enum):
 class CourseSectionPeriod(BaseModel):
     semester_id: str = Field(example="202101")
     crn: str = Field(example="42608")
-    class_type: Optional[ClassTypeEnum] = Field(None, example="lecture")
+    type: Optional[ClassTypeEnum] = Field(None, example=ClassTypeEnum.LECTURE)
     start_time: Optional[str] = Field(
         None,
         description="24-hour 0-padded start time hh:mm format (RPI time)",
@@ -60,7 +60,7 @@ class CourseSectionPeriod(BaseModel):
         return {
             "semester_id": self.semester_id,
             "crn": self.crn,
-            "class_type": self.class_type,
+            "type": self.type,
             "start_time": self.start_time,
             "end_time": self.end_time,
             "instructors": "/".join(self.instructors),
@@ -69,7 +69,7 @@ class CourseSectionPeriod(BaseModel):
         }
 
     def __str__(self) -> str:
-        return f"{self.class_type} on days {self.days} from {self.start_time}-{self.end_time} with {self.instructors} at {self.location}"
+        return f"{self.type} on days {self.days} from {self.start_time}-{self.end_time} with {self.instructors} at {self.location}"
 
 
 class CourseSection(BaseModel):

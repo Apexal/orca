@@ -1,3 +1,4 @@
+from api.models import ClassTypeEnum
 from api.parser import DAY_LETTERS, PERIOD_TYPES
 from api.parser.utils import extract_td_value
 from typing import Dict, List, Tuple
@@ -30,7 +31,7 @@ class Registrar:
     @staticmethod
     def parse_period_types(
         semester_id: str,
-    ) -> Dict[Tuple[str, str, str, str, str, str, str], str]:
+    ) -> Dict[Tuple[str, int, str], ClassTypeEnum]:
         """
         Downloads and parses schedule page for a specific semester.
         Returns a mapping between (43895, W, 12:00) -> lecture
