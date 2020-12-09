@@ -3,6 +3,7 @@ This module provides an interface for web scraping the SIS course search page wh
 lists ALL course sections for a particular semester.
 """
 
+from api.parser.utils import sanitize
 from enum import Enum
 from api.models import CourseSection, CourseSectionPeriod
 from typing import Any, Dict, List, Optional, Tuple
@@ -202,16 +203,11 @@ class SIS:
         return tuple(map(SIS._to_24_hour_time, times.split("-")))
 
     @staticmethod
-    def _sanitize(str: str) -> str:
-        """Sanitize a string by stripping whitespace on edges and in between."""
-        return " ".join(str.strip().split())
-
-    @staticmethod
     def _extract_td_value(td: Any) -> Optional[str]:
         val = td.xpath("descendant-or-self::*/text()")
 
         if len(val):
-            sanitized = SIS._sanitize("".join(val))
+            sanitized = sanitize("".join(val))
             if sanitized == "" or "TBA" in sanitized:
                 return None
             return sanitized
