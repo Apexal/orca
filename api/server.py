@@ -40,24 +40,6 @@ CRN = constr(regex="^[0-9]{5}$")
 """A constrained string that must be a 5 digit number. All CRNs conform to this (I think)."""
 
 
-@app.post("/{semester_id}/sections/update", tags=["sections"], include_in_schema=False)
-async def update_sections(semester_id: str, api_key: str):
-    """
-    **ADMIN ONLY**
-    Update a semester's data by fetching it from all of the sources. This is called periodically to keep data fresh.
-    """
-    if api_key != os.environ["API_KEY"]:
-        return HTTPException(401, "Invalid API Key! Only admins can do this.")
-
-    sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"])
-    sis.login()
-    course_sections = sis.fetch_course_sections(semester_id)
-    update_course_sections(semester_id, course_sections)
-    return {
-        "update_count": len(course_sections)
-    }
-
-
 @app.get(
     "/{semester_id}/sections",
     tags=["sections"],
@@ -79,10 +61,13 @@ async def get_sections(
     course_subject_prefix: Optional[str] = Query(None),
     course_number: Optional[str] = Query(None),
     course_title: Optional[str] = Query(None),
-    has_seats: Optional[bool] = Query(None),
+    days: Optional[List[str]] = Query(None, title="Meeting days", description="`NOT YET IMPLEMENTED`"),
+    has_seats: Optional[bool] = Query(None, title="Has open seats"),
     limit: int = Query(
         100,
-        description="The maximum number of course sections to return in the response.",
+        description="The maximum number of course sections to return in the response. Max: 50",
+        gt=0,
+        lt=51,
     ),
     offset: int = Query(
         0, description="The number of course sections in the response to skip."
@@ -123,12 +108,15 @@ async def get_courses(
         description="The id of the semester, determined by the Registrar.",
     ),
     include_sections: bool = Query(True),
-    title: Optional[str] = Query(None),
-    subject_prefix: Optional[str] = Query(None),
-    number: Optional[str] = Query(None),
+    title: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
+    days: Optional[List[str]] = Query(None, description="`NOT YET IMPLEMENTED`"),
+    subject_prefix: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
+    number: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
     limit: int = Query(
-        100,
-        description="The maximum number of course sections to return in the response.",
+        50,
+        description="The maximum number of course sections to return in the response. Max: 50",
+        gt=0,
+        lt=51,
     ),
     offset: int = Query(
         0, description="The number of course sections in the response to skip."
@@ -139,3 +127,19 @@ async def get_courses(
     else:
         courses = fetch_courses_without_sections(semester_id, limit, offset)
         return courses
+
+
+@app.post("/{semester_id}/sections/update", tags=["admin"])
+async def update_sections(semester_id: str, api_key: str):
+    """
+    **ADMIN ONLY**
+    Update a semester's data by fetching it from all of the sources. This is called periodically to keep data fresh.
+    """
+    if api_key != os.environ["API_KEY"]:
+        return HTTPException(401, "Invalid API Key! Only admins can do this.")
+
+    sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"])
+    sis.login()
+    course_sections = sis.fetch_course_sections(semester_id)
+    update_course_sections(semester_id, course_sections)
+    return {"update_count": len(course_sections)}
