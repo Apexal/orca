@@ -42,7 +42,6 @@ def update_course_sections(semester_id: str, course_sections: List[CourseSection
             f'INSERT INTO course_sections({",".join(record.keys())}) VALUES ({placeholders})',
             record,
         )
-        print(f'Added new course_section {record["crn"]}')
 
         # Add course sections
         for period in course_section.periods:
@@ -52,7 +51,6 @@ def update_course_sections(semester_id: str, course_sections: List[CourseSection
                 f'INSERT INTO course_section_periods({",".join(record.keys())}) VALUES ({placeholders})',
                 record,
             )
-            print(f"Added {period.class_type} period for {course_section.crn}")
     conn.commit()
 
 
@@ -139,7 +137,9 @@ def fetch_course_section_periods(
     return list(map(CourseSectionPeriod.from_record, course_section_periods_raw))
 
 
-def populate_course_periods(semester_id: str, courses: List[Course], include_periods: bool):
+def populate_course_periods(
+    semester_id: str, courses: List[Course], include_periods: bool
+):
     cursor = conn.cursor()
 
     for course in courses:
@@ -156,6 +156,7 @@ def populate_course_periods(semester_id: str, courses: List[Course], include_per
         records = cursor.fetchall()
         # TODO: check include_periods
         course.sections = list(map(CourseSection.from_record, records))
+
 
 def fetch_courses_without_sections(
     semester_id: str, limit: int, offset: int, **search
@@ -179,15 +180,19 @@ def fetch_courses_without_sections(
     c.execute(q.get_sql())
     return list(map(lambda r: Course(**r), c.fetchall()))
 
+
 def fetch_course_subject_prefixes() -> List[str]:
     cursor = conn.cursor()
-    q: QueryBuilder = Query.from_(course_sections_t) \
-        .select(course_sections_t.course_subject_prefix) \
-        .groupby(course_sections_t.course_subject_prefix) \
+    q: QueryBuilder = (
+        Query.from_(course_sections_t)
+        .select(course_sections_t.course_subject_prefix)
+        .groupby(course_sections_t.course_subject_prefix)
         .orderby(course_sections_t.course_subject_prefix)
-    
+    )
+
     cursor.execute(q.get_sql())
     return list(map(lambda record: record["course_subject_prefix"], cursor.fetchall()))
+
 
 def records_to_sections(semester_id: str, records: List[Dict]) -> List[CourseSection]:
     sections = []
