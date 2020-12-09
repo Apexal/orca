@@ -186,7 +186,6 @@ def fetch_course_subject_prefixes() -> List[str]:
         .groupby(course_sections_t.course_subject_prefix) \
         .orderby(course_sections_t.course_subject_prefix)
     
-    print(q.get_sql())
     cursor.execute(q.get_sql())
     return list(map(lambda record: record["course_subject_prefix"], cursor.fetchall()))
 

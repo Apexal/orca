@@ -129,7 +129,7 @@ async def get_courses(
 
     return courses
 
-@app.get("/{semester_id}/metadata/course_subject_prefixes", tags=["metadata"], summary="Fetch course subject prefixes", response_model=List[str])
+@app.get("/{semester_id}/courses/subjects", tags=["courses"], summary="Fetch course subject prefixes", response_model=List[str])
 async def list_course_subject_prefixes():
     """Fetch the unique course subject prefixes: e.g. BIOL, CSCI, ESCI, MATH, etc."""
     return fetch_course_subject_prefixes()

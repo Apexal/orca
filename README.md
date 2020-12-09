@@ -1,6 +1,6 @@
 ### **ORCA** is an open-source API for RPI's course schedule.
 
-Deployed at [https://rcos-orca.herokuapp.com/docs](https://rcos-orca.herokuapp.com/docs)
+Deployed at [https://rcos-orca.herokuapp.com/docs](https://rcos-orca.herokuapp.com/docs) [(alternate docs)](https://rcos-orca.herokuapp.com/redoc)
 
 ## Overview
 ORCA gives you access to every course offered in a semester along with the sections scheduled with weekly periods. This includes:
