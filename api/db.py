@@ -179,6 +179,16 @@ def fetch_courses_without_sections(
     c.execute(q.get_sql())
     return list(map(lambda r: Course(**r), c.fetchall()))
 
+def fetch_course_subject_prefixes() -> List[str]:
+    cursor = conn.cursor()
+    q: QueryBuilder = Query.from_(course_sections_t) \
+        .select(course_sections_t.course_subject_prefix) \
+        .groupby(course_sections_t.course_subject_prefix) \
+        .orderby(course_sections_t.course_subject_prefix)
+    
+    print(q.get_sql())
+    cursor.execute(q.get_sql())
+    return list(map(lambda record: record["course_subject_prefix"], cursor.fetchall()))
 
 def records_to_sections(semester_id: str, records: List[Dict]) -> List[CourseSection]:
     sections = []

@@ -6,7 +6,7 @@ from pydantic.types import constr
 from api.models import Course, CourseSection
 from .parser.sis import SIS
 from .db import (
-    fetch_course_sections,
+    fetch_course_sections, fetch_course_subject_prefixes,
     fetch_courses_without_sections, populate_course_periods,
     search_course_sections,
     update_course_sections,
@@ -63,7 +63,7 @@ async def get_sections(
     days: Optional[List[str]] = Query(None, title="Meeting days", description="`NOT YET IMPLEMENTED`"),
     has_seats: Optional[bool] = Query(None, title="Has open seats"),
     limit: int = Query(
-        100,
+        10,
         description="The maximum number of course sections to return in the response. Max: 50",
         gt=0,
         lt=51,
@@ -113,7 +113,7 @@ async def get_courses(
     subject_prefix: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
     number: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
     limit: int = Query(
-        50,
+        10,
         description="The maximum number of course sections to return in the response. Max: 50",
         gt=0,
         lt=51,
@@ -129,6 +129,10 @@ async def get_courses(
 
     return courses
 
+@app.get("/{semester_id}/metadata/course_subject_prefixes", tags=["metadata"], summary="Fetch course subject prefixes", response_model=List[str])
+async def list_course_subject_prefixes():
+    """Fetch the unique course subject prefixes: e.g. BIOL, CSCI, ESCI, MATH, etc."""
+    return fetch_course_subject_prefixes()
 
 @app.post("/{semester_id}/sections/update", tags=["admin"])
 async def update_sections(semester_id: str, api_key: str):
