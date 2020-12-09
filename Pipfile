@@ -4,6 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pytest = "*"
 
 [packages]
 fastapi = "*"
@@ -16,3 +17,5 @@ pypika = "*"
 
 [requires]
 python_version = "3.8"
+
+[pipenv]
