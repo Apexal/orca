@@ -81,7 +81,7 @@ class CourseSection(BaseModel):
     crn: str = Field(example="42608")
     intruction_method: Optional[str] = None
     credits: List[int] = Field(example=[4])
-    periods: List[CourseSectionPeriod]
+    periods: Optional[List[CourseSectionPeriod]]
     max_enrollments: int = Field(example=150)
     enrollments: int = Field(example=148)
     waitlist_max: int = Field(example=0)
@@ -89,7 +89,7 @@ class CourseSection(BaseModel):
     textbooks_url: Optional[str] = None
 
     @staticmethod
-    def from_record(record: Dict[str, Any], periods: List[CourseSectionPeriod]):
+    def from_record(record: Dict[str, Any], periods: Optional[List[CourseSectionPeriod]] = None):
         """Creates a CourseSection from a DB record."""
         record["periods"] = periods
 

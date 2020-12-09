@@ -1,4 +1,4 @@
-### **ORCA** is an open-source API for querying the Registrar's semesterly course listings.
+### **ORCA** is an open-source API for RPI's course schedule.
 
 Deployed at [https://rcos-orca.herokuapp.com/docs](https://rcos-orca.herokuapp.com/docs)
 

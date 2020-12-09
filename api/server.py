@@ -7,8 +7,7 @@ from api.models import Course, CourseSection
 from .parser.sis import SIS
 from .db import (
     fetch_course_sections,
-    fetch_courses_with_sections,
-    fetch_courses_without_sections,
+    fetch_courses_without_sections, populate_course_periods,
     search_course_sections,
     update_course_sections,
 )
@@ -107,7 +106,8 @@ async def get_courses(
         example="202101",
         description="The id of the semester, determined by the Registrar.",
     ),
-    include_sections: bool = Query(True),
+    include_sections: bool = Query(False, description="Populate `sections` for each course."),
+    include_periods: bool = Query(True, description="`NOT YET IMPLEMENTED` Populate `periods` of each section (only checked if `include_sections` is True)"),
     title: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
     days: Optional[List[str]] = Query(None, description="`NOT YET IMPLEMENTED`"),
     subject_prefix: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
@@ -122,11 +122,12 @@ async def get_courses(
         0, description="The number of course sections in the response to skip."
     ),
 ):
+    courses = fetch_courses_without_sections(semester_id, limit, offset)
+
     if include_sections:
-        return fetch_courses_with_sections(semester_id, limit, offset)
-    else:
-        courses = fetch_courses_without_sections(semester_id, limit, offset)
-        return courses
+        populate_course_periods(semester_id, courses, include_sections)
+
+    return courses
 
 
 @app.post("/{semester_id}/sections/update", tags=["admin"])

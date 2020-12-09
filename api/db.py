@@ -31,7 +31,7 @@ def update_course_sections(semester_id: str, course_sections: List[CourseSection
 
     c.execute("DELETE FROM course_section_periods WHERE semester_id=%s", (semester_id,))
     c.execute("DELETE FROM course_sections WHERE semester_id=%s", (semester_id,))
-    
+
     print(f"Adding {len(course_sections)} sections")
     for course_section in course_sections:
         record = course_section.to_record()
@@ -139,51 +139,27 @@ def fetch_course_section_periods(
     return list(map(CourseSectionPeriod.from_record, course_section_periods_raw))
 
 
-def fetch_courses_with_sections(
-    semester_id: str, limit: int, offset: int, **search
-) -> List[Course]:
-    c = conn.cursor()
+def populate_course_periods(semester_id: str, courses: List[Course], include_periods: bool):
+    cursor = conn.cursor()
 
-    print("Start...")
-    # Fetch course sections then manually aggregate them with sections and periods
-    q: QueryBuilder = (
-        course_sections_q.select("*")
-        .where(course_sections_t.semester_id == semester_id)
-        .orderby("section_id")
-        # TODO: have these count for courses, not 
-        .limit(limit)
-        .offset(offset)
-    )
-
-    c.execute(q.get_sql())
-    records = c.fetchall()
-    print("Fetched!")
-    courses = dict()
-    for record in records:
-        key = (
-            record["course_subject_prefix"],
-            record["course_number"],
-            record["course_title"],
+    for course in courses:
+        q: QueryBuilder = (
+            course_sections_q.select("*")
+            .where(course_sections_t.semester_id == semester_id)
+            .where(course_sections_t.course_subject_prefix == course.subject_prefix)
+            .where(course_sections_t.course_number == course.number)
+            .where(course_sections_t.course_title == course.title)
+            .orderby(course_sections_t.section_id)
         )
 
-        if key not in courses:
-            courses[key] = Course(
-                semester_id=semester_id,
-                subject_prefix=record["course_subject_prefix"],
-                number=record["course_number"],
-                title=record["course_title"],
-                sections=[],
-            )
-        periods = fetch_course_section_periods(semester_id, record["crn"])
-
-        courses[key].sections.append(CourseSection.from_record(record, periods))
-
-    return list(courses.values())
-
+        cursor.execute(q.get_sql())
+        records = cursor.fetchall()
+        # TODO: check include_periods
+        course.sections = list(map(CourseSection.from_record, records))
 
 def fetch_courses_without_sections(
     semester_id: str, limit: int, offset: int, **search
-) -> Dict[str, Any]:
+) -> List[Course]:
     c = conn.cursor()
 
     q: QueryBuilder = (
@@ -201,7 +177,7 @@ def fetch_courses_without_sections(
     )
 
     c.execute(q.get_sql())
-    return c.fetchall()
+    return list(map(lambda r: Course(**r), c.fetchall()))
 
 
 def records_to_sections(semester_id: str, records: List[Dict]) -> List[CourseSection]:
