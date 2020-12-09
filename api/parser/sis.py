@@ -94,12 +94,10 @@ class SIS:
         )
         tree = lxml.html.fromstring(course_sections_page.content)
 
-        # Query for all rows in the sections table
+        # Query for all rows in the sections table, Skip first two heading rows
         section_rows = tree.xpath(
             "//table[./caption[contains(text(), 'Sections Found')]]//tr"
-        )[
-            2:
-        ]  # Skip first two heading rows
+        )[2:]
 
         last_crn = "start"
         sections = dict()
