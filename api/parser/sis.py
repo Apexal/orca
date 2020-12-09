@@ -35,7 +35,7 @@ class SIS:
     LOGIN_URL = "https://cas-auth-ent.rpi.edu/cas/login?service=https://bannerapp04-bnrprd.server.rpi.edu:443/ssomanager/c/SSB"
     START_SEARCH_URL = "https://sis.rpi.edu/rss/bwckgens.p_proc_term_date"
     COURSE_SEARCH_URL = "https://sis.rpi.edu/rss/bwskfcls.P_GetCrse_Advanced"
-    DAY_LETTERS = {"M": 1, "T": 2, "W": 3, "R": 4, "F": 5}
+    DAY_LETTERS = {"M": 1, "T": 2, "W": 3, "R": 4, "F": 5, "S": 6}
 
     def __init__(self, rin: str, pin: str) -> None:
         self.rin = rin
