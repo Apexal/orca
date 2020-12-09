@@ -1,3 +1,4 @@
+from api.parser.registrar import Registrar
 import os
 from dotenv import load_dotenv, find_dotenv
 
@@ -143,7 +144,8 @@ async def update_sections(semester_id: str, api_key: str):
     if api_key != os.environ["API_KEY"]:
         return HTTPException(401, "Invalid API Key! Only admins can do this.")
 
-    sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"])
+    period_types = Registrar.parse_period_types(semester_id)
+    sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"], period_types)
     sis.login()
     course_sections = sis.fetch_course_sections(semester_id)
     update_course_sections(semester_id, course_sections)

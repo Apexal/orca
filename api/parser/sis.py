@@ -3,8 +3,10 @@ This module provides an interface for web scraping the SIS course search page wh
 lists ALL course sections for a particular semester.
 """
 
+from api.parser import DAY_LETTERS
+from api.parser.utils import extract_td_value, sanitize
 from enum import Enum
-from api.models import CourseSection, CourseSectionPeriod
+from api.models import ClassTypeEnum, CourseSection, CourseSectionPeriod
 from typing import Any, Dict, List, Optional, Tuple
 import requests
 import lxml.html
@@ -35,11 +37,16 @@ class SIS:
     LOGIN_URL = "https://cas-auth-ent.rpi.edu/cas/login?service=https://bannerapp04-bnrprd.server.rpi.edu:443/ssomanager/c/SSB"
     START_SEARCH_URL = "https://sis.rpi.edu/rss/bwckgens.p_proc_term_date"
     COURSE_SEARCH_URL = "https://sis.rpi.edu/rss/bwskfcls.P_GetCrse_Advanced"
-    DAY_LETTERS = {"M": 1, "T": 2, "W": 3, "R": 4, "F": 5, "S": 6}
 
-    def __init__(self, rin: str, pin: str) -> None:
+    def __init__(
+        self,
+        rin: str,
+        pin: str,
+        period_types: Optional[Dict[Tuple[str, int, str], ClassTypeEnum]] = None,
+    ) -> None:
         self.rin = rin
         self.pin = pin
+        self.period_types = period_types if period_types is not None else dict()
         self.session = requests.Session()  # Persistent session to make requests
 
     def login(self) -> bool:
@@ -93,18 +100,16 @@ class SIS:
         )
         tree = lxml.html.fromstring(course_sections_page.content)
 
-        # Query for all rows in the sections table
+        # Query for all rows in the sections table, Skip first two heading rows
         section_rows = tree.xpath(
             "//table[./caption[contains(text(), 'Sections Found')]]//tr"
-        )[
-            2:
-        ]  # Skip first two heading rows
+        )[2:]
 
         last_crn = "start"
         sections = dict()
         for tr in section_rows:
             # Each TD can have different elements in it
-            # _extract_td_value will properly determine the string values or return None for empty
+            # extract_td_value will properly determine the string values or return None for empty
             tds = tr.xpath("td")
             if len(tds) == 0:
                 continue
@@ -115,38 +120,47 @@ class SIS:
                     # Need to add another empty td
                     tds.insert(i + 1, etree.Element("td"))
                 i += 1
-            values = list(map(SIS._extract_td_value, tds))
+            values = list(map(extract_td_value, tds))
 
             if values[Column.CRN] is not None and values[Column.CRN] != last_crn:
                 # New section
-                sections[values[Column.CRN]] = SIS._create_course_section(semester_id, values)
+                sections[values[Column.CRN]] = SIS._create_course_section(
+                    semester_id, values
+                )
                 last_crn = values[Column.CRN]
 
-            period = SIS._create_course_section_period(semester_id, last_crn, values)
+            period = SIS._create_course_section_period(semester_id, last_crn, values, self.period_types)
             sections[last_crn].periods.append(period)
 
         return list(sections.values())
 
     @staticmethod
     def _create_course_section_period(
-        semester_id: str, crn: str, values: List[Optional[str]]
+        semester_id: str,
+        crn: str,
+        values: List[Optional[str]],
+        period_types: Dict[Tuple[str, int, str], ClassTypeEnum],
     ) -> CourseSectionPeriod:
         start_time, end_time = SIS._determine_times(values[Column.TIME])
 
         days = []
         if values[Column.DAYS] is not None:
-            days = list(
-                map(lambda letter: SIS.DAY_LETTERS[letter], values[Column.DAYS])
-            )
-        
+            days = list(map(lambda letter: DAY_LETTERS[letter], values[Column.DAYS]))
+
         instructors = []
         if values[Column.INSTRUCTOR] is not None:
             instructors = values[Column.INSTRUCTOR].replace(" (P)", "").split(", ")
 
+        period_type = "lecture"
+        if len(days) > 0:
+            period_type_key = (crn, days[0], start_time)
+            if period_type_key in period_types:
+                period_type = period_types[(crn, days[0], start_time)]
+
         return CourseSectionPeriod(
             semester_id=semester_id,
             crn=crn,
-            class_type="lecture",
+            type=period_type,
             start_time=start_time,
             end_time=end_time,
             instructors=instructors,
@@ -155,9 +169,7 @@ class SIS:
         )
 
     @staticmethod
-    def _create_course_section(
-        semester_id: str, values: Dict
-    ) -> CourseSection:
+    def _create_course_section(semester_id: str, values: Dict) -> CourseSection:
         if "-" in values[Column.CREDITS]:
             min_credits, max_credits = map(
                 int, map(float, values[Column.CREDITS].split("-"))
@@ -200,23 +212,6 @@ class SIS:
         # times = "10:10 am-12:00 pm"
         # "10:10 am", "12:00 pm"
         return tuple(map(SIS._to_24_hour_time, times.split("-")))
-
-    @staticmethod
-    def _sanitize(str: str) -> str:
-        """Sanitize a string by stripping whitespace on edges and in between."""
-        return " ".join(str.strip().split())
-
-    @staticmethod
-    def _extract_td_value(td: Any) -> Optional[str]:
-        val = td.xpath("descendant-or-self::*/text()")
-
-        if len(val):
-            sanitized = SIS._sanitize("".join(val))
-            if sanitized == "" or "TBA" in sanitized:
-                return None
-            return sanitized
-        else:
-            return None
 
     def _create_search_params(
         self, semester_id: str, subjects: List[str]
