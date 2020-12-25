@@ -11,6 +11,7 @@ from .db import (
     fetch_courses_without_sections, populate_course_periods,
     search_course_sections,
     update_course_sections,
+    postgres_pool
 )
 from typing import List, Optional
 from api import api_version
@@ -26,6 +27,11 @@ with open("README.md") as f:
 app = FastAPI(
     title="Open-source RPI Course API", description=description, version=api_version
 )
+
+# Cleanup database connections when FastAPI shutsdown
+@app.on_event("shutdown")
+def on_shutdown():
+    postgres_pool.closeall()
 
 # Allow requests from all origins
 app.add_middleware(
