@@ -40,28 +40,40 @@ CRN = constr(regex="^[0-9]{5}$")
 """A constrained string that must be a 5 digit number. All CRNs conform to this (I think)."""
 
 
-@app.get("/semesters", tags=["semesters"], response_model=List[Semester], summary="Fetch supported semesters")
+@app.get("/semesters", tags=["semesters"], response_model=List[Semester], summary="Fetch supported semesters", response_description="Semesters which have their schedules loaded into the API.")
 async def get_semesters():
     return fetch_semesters()
 
 
-@app.get(
-    "/{semester_id}/sections",
-    tags=["sections"],
-    response_model=List[CourseSection],
-    response_description="The paginated list of course sections that match the queries.",
-    summary="Fetch/search course periods",
-)
+@app.get("/{semester_id}/sections", tags=["sections"], response_model=List[CourseSection], summary="Get sections from CRNs", response_description="List of found course sections. Excludes CRNs not found.")
 async def get_sections(
     semester_id: str = Path(
         None,
         example="202101",
         description="The id of the semester, determined by the Registrar.",
     ),
-    crns: Optional[List[CRN]] = Query(
-        None,
-        description="The direct CRNs of the course sections to fetch. If present, no other search parameters can be set and `limit` and `offset` are ignored.",
+    crns: List[CRN] = Query(
+        ...,
+        description="The direct CRNs of the course sections to fetch.",
         example=["42608"],
+    ),
+):
+    """Directly fetch course sections from CRNs."""
+    return fetch_course_sections(semester_id, crns)
+
+
+@app.get(
+    "/{semester_id}/sections/search",
+    tags=["sections"],
+    response_model=List[CourseSection],
+    response_description="The paginated list of course sections that match the queries.",
+    summary="Search course periods",
+)
+async def search_sections(
+    semester_id: str = Path(
+        None,
+        example="202101",
+        description="The id of the semester, determined by the Registrar.",
     ),
     course_subject_prefix: Optional[str] = Query(None),
     course_number: Optional[str] = Query(None),
@@ -80,25 +92,18 @@ async def get_sections(
     ),
 ):
     """
-    Directly fetch course sections by CRN or search with different query parameters. Always returns a paginated response.
+    Search course sections with different query parameters. Always returns a paginated response.
     """
-    sections = []
 
-    # Determine which filters to apply
-    if crns:
-        # If CRNs are given, no other search queries should be passed
-        sections = fetch_course_sections(semester_id, crns)
-    else:
-        sections = search_course_sections(
-            semester_id,
-            limit,
-            offset,
-            course_subject_prefix=course_subject_prefix,
-            course_number=course_number,
-            course_title=course_title,
-            has_seats=has_seats,
-        )
-    return sections
+    return search_course_sections(
+        semester_id,
+        limit,
+        offset,
+        course_subject_prefix=course_subject_prefix,
+        course_number=course_number,
+        course_title=course_title,
+        has_seats=has_seats,
+    )
 
 
 @app.get(
