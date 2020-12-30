@@ -43,33 +43,17 @@ class CourseSectionPeriod(BaseModel):
     @staticmethod
     def from_record(record: Dict[str, Any]):
         """Creates a CourseSectionPeriod from a DB record."""
-        if record["instructors"]:
-            record["instructors"] = record["instructors"].split("/")
-        else:
-            record["instructors"] = []
-
-        if record["days"]:
-            record["days"] = list(map(int, record["days"].split(",")))
-        else:
-            record["days"] = []
-
         return CourseSectionPeriod(**record)
 
     def to_record(self) -> Dict[str, Any]:
         """Convert period to flat dictionary to store in DB."""
-        return {
-            "semester_id": self.semester_id,
-            "crn": self.crn,
-            "type": self.type,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "instructors": "/".join(self.instructors),
-            "location": self.location,
-            "days": ",".join(map(str, self.days)),
-        }
+        return {**self.dict(), }
 
     def __str__(self) -> str:
         return f"{self.type} on days {self.days} from {self.start_time}-{self.end_time} with {self.instructors} at {self.location}"
+
+    class Config:
+        use_enum_values = True
 
 
 class CourseSection(BaseModel):
@@ -79,13 +63,14 @@ class CourseSection(BaseModel):
     course_title: str = Field(example="INTRODUCTION TO BIOLOGY")
     section_id: str = Field(example="01")
     crn: str = Field(example="42608")
-    intruction_method: Optional[str] = None
+    instruction_method: Optional[str] = None
     credits: List[int] = Field(example=[4])
     periods: Optional[List[CourseSectionPeriod]]
     max_enrollments: int = Field(example=150)
     enrollments: int = Field(example=148)
     waitlist_max: int = Field(example=0)
-    waitlists: int = Field(example=0, description="The number of students on the waitlist.")
+    waitlists: int = Field(
+        example=0, description="The number of students on the waitlist.")
     textbooks_url: Optional[str] = None
 
     @staticmethod
@@ -93,28 +78,11 @@ class CourseSection(BaseModel):
         """Creates a CourseSection from a DB record."""
         record["periods"] = periods
 
-        if record["credits"]:
-            record["credits"] = list(map(int, record["credits"].split(",")))
-
         return CourseSection(**record)
 
     def to_record(self) -> Dict[str, Any]:
         """Convert period to flat dictionary to store in DB."""
-        return {
-            "semester_id": self.semester_id,
-            "course_subject_prefix": self.course_subject_prefix,
-            "course_number": self.course_number,
-            "course_title": self.course_title,
-            "crn": self.crn,
-            "section_id": self.section_id,
-            "instruction_method": self.intruction_method,
-            "credits": ",".join(map(str, self.credits)),
-            "max_enrollments": self.max_enrollments,
-            "enrollments": self.enrollments,
-            "waitlist_max": self.waitlist_max,
-            "waitlists": self.waitlists,
-            "textbooks_url": self.textbooks_url,
-        }
+        return self.dict(exclude={"periods"})
 
     def __str__(self) -> str:
         return f"{self.crn}: {self.course_subject_prefix}-{self.course_number}-{self.section_id} {self.course_title} w/ {len(self.periods)} periods"
