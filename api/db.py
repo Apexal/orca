@@ -3,9 +3,9 @@ import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor
 from pypika.enums import Order
-from .models import Course, CourseSection, CourseSectionPeriod
+from .models import Course, CourseSection, CourseSectionPeriod, Semester
 
-from pypika import Query, Table, Field
+from pypika import PostgreSQLQuery as Query, Table, Field
 from pypika.queries import QueryBuilder
 
 import os
@@ -56,10 +56,18 @@ class PostgresConnectionPoolConnection:
         self.conn = None
 
 
+def fetch_semesters() -> List[Semester]:
+    c = conn.cursor()
+    c.execute("SELECT * FROM semesters ORDER BY semester_id")
+    records = c.fetchall()
+    return list(map(Semester.from_record, records))
+
+
 def update_course_sections(semester_id: str, course_sections: List[CourseSection]):
     c = conn.cursor()
 
-    c.execute("DELETE FROM course_section_periods WHERE semester_id=%s", (semester_id,))
+    c.execute(
+        "DELETE FROM course_section_periods WHERE semester_id=%s", (semester_id,))
     c.execute("DELETE FROM course_sections WHERE semester_id=%s", (semester_id,))
 
     print(f"Adding {len(course_sections)} sections")
@@ -67,20 +75,26 @@ def update_course_sections(semester_id: str, course_sections: List[CourseSection
         record = course_section.to_record()
 
         # Add new record
-        placeholders = ",".join(map(lambda key: f"%({key})s", record.keys()))
-        c.execute(
-            f'INSERT INTO course_sections({",".join(record.keys())}) VALUES ({placeholders})',
-            record,
-        )
+        q = Query \
+            .into(course_sections_t) \
+            .columns(*record.keys()) \
+            .insert(*record.values())
+        print(str(q))
+        c.execute(str(q))
 
         # Add course sections
-        for period in course_section.periods:
-            record = period.to_record()
-            placeholders = ",".join(map(lambda key: f"%({key})s", record.keys()))
-            c.execute(
-                f'INSERT INTO course_section_periods({",".join(record.keys())}) VALUES ({placeholders})',
-                record,
-            )
+        if len(course_section.periods) > 0:
+            q = Query \
+                .into(periods_t) \
+                .columns(*course_section.periods[0].dict().keys())
+
+            for period in course_section.periods:
+                q = q.insert(*period.to_record().values())
+
+            # https://github.com/kayak/pypika/issues/527
+            workaround = str(q).replace("ARRAY[]", "'{}'")
+            print(workaround)
+            c.execute(workaround)
     conn.commit()
 
 
@@ -114,7 +128,8 @@ def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
             lambda pr: pr["crn"] == record["crn"], period_records
         )
         # Turn those period records into CourseSectionPeriods
-        periods = list(map(CourseSectionPeriod.from_record, section_period_records))
+        periods = list(
+            map(CourseSectionPeriod.from_record, section_period_records))
         # Add created CourseSection
         sections.append(CourseSection.from_record(record, periods))
 
@@ -143,10 +158,12 @@ def search_course_sections(semester_id: str, limit: int, offset: int, **search):
 
     # Special values that require complex checks
     if search["has_seats"] == False:
-        q = q.where(course_sections_t.enrollments >= course_sections_t.max_enrollments)
+        q = q.where(course_sections_t.enrollments >=
+                    course_sections_t.max_enrollments)
 
     if search["has_seats"] == True:
-        q = q.where(course_sections_t.enrollments < course_sections_t.max_enrollments)
+        q = q.where(course_sections_t.enrollments <
+                    course_sections_t.max_enrollments)
 
     c.execute(q.get_sql())
     records = c.fetchall()

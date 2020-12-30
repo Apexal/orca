@@ -1,24 +1,24 @@
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.params import Path, Query
+from fastapi import FastAPI, HTTPException
+from api import api_version
+from typing import List, Optional
+from .db import (
+    fetch_course_sections, fetch_course_subject_prefixes,
+    fetch_courses_without_sections, fetch_semesters, populate_course_periods,
+    search_course_sections,
+    update_course_sections,
+    postgres_pool
+)
+from .parser.sis import SIS
+from api.models import Course, CourseSection, Semester
+from pydantic.types import constr
 from api.parser.registrar import Registrar
 import os
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
-from pydantic.types import constr
-from api.models import Course, CourseSection
-from .parser.sis import SIS
-from .db import (
-    fetch_course_sections, fetch_course_subject_prefixes,
-    fetch_courses_without_sections, populate_course_periods,
-    search_course_sections,
-    update_course_sections,
-    postgres_pool
-)
-from typing import List, Optional
-from api import api_version
 
-from fastapi import FastAPI, HTTPException
-from fastapi.params import Path, Query
-from fastapi.middleware.cors import CORSMiddleware
 
 with open("README.md") as f:
     description = f.read()
@@ -46,28 +46,46 @@ CRN = constr(regex="^[0-9]{5}$")
 """A constrained string that must be a 5 digit number. All CRNs conform to this (I think)."""
 
 
-@app.get(
-    "/{semester_id}/sections",
-    tags=["sections"],
-    response_model=List[CourseSection],
-    response_description="The paginated list of course sections that match the queries.",
-    summary="Fetch/search course periods",
-)
+@app.get("/semesters", tags=["semesters"], response_model=List[Semester], summary="Fetch supported semesters", response_description="Semesters which have their schedules loaded into the API.")
+async def get_semesters():
+    return fetch_semesters()
+
+
+@app.get("/{semester_id}/sections", tags=["sections"], response_model=List[CourseSection], summary="Get sections from CRNs", response_description="List of found course sections. Excludes CRNs not found.")
 async def get_sections(
     semester_id: str = Path(
         None,
         example="202101",
         description="The id of the semester, determined by the Registrar.",
     ),
-    crns: Optional[List[CRN]] = Query(
-        None,
-        description="The direct CRNs of the course sections to fetch. If present, no other search parameters can be set and `limit` and `offset` are ignored.",
+    crns: List[CRN] = Query(
+        ...,
+        description="The direct CRNs of the course sections to fetch.",
         example=["42608"],
+    ),
+):
+    """Directly fetch course sections from CRNs."""
+    return fetch_course_sections(semester_id, crns)
+
+
+@app.get(
+    "/{semester_id}/sections/search",
+    tags=["sections"],
+    response_model=List[CourseSection],
+    response_description="The paginated list of course sections that match the queries.",
+    summary="Search course periods",
+)
+async def search_sections(
+    semester_id: str = Path(
+        None,
+        example="202101",
+        description="The id of the semester, determined by the Registrar.",
     ),
     course_subject_prefix: Optional[str] = Query(None),
     course_number: Optional[str] = Query(None),
     course_title: Optional[str] = Query(None),
-    days: Optional[List[str]] = Query(None, title="Meeting days", description="`NOT YET IMPLEMENTED`"),
+    days: Optional[List[str]] = Query(
+        None, title="Meeting days", description="`NOT YET IMPLEMENTED`"),
     has_seats: Optional[bool] = Query(None, title="Has open seats"),
     limit: int = Query(
         10,
@@ -80,25 +98,18 @@ async def get_sections(
     ),
 ):
     """
-    Directly fetch course sections by CRN or search with different query parameters. Always returns a paginated response.
+    Search course sections with different query parameters. Always returns a paginated response.
     """
-    sections = []
 
-    # Determine which filters to apply
-    if crns:
-        # If CRNs are given, no other search queries should be passed
-        sections = fetch_course_sections(semester_id, crns)
-    else:
-        sections = search_course_sections(
-            semester_id,
-            limit,
-            offset,
-            course_subject_prefix=course_subject_prefix,
-            course_number=course_number,
-            course_title=course_title,
-            has_seats=has_seats,
-        )
-    return sections
+    return search_course_sections(
+        semester_id,
+        limit,
+        offset,
+        course_subject_prefix=course_subject_prefix,
+        course_number=course_number,
+        course_title=course_title,
+        has_seats=has_seats,
+    )
 
 
 @app.get(
@@ -113,11 +124,15 @@ async def get_courses(
         example="202101",
         description="The id of the semester, determined by the Registrar.",
     ),
-    include_sections: bool = Query(False, description="Populate `sections` for each course."),
-    include_periods: bool = Query(True, description="`NOT YET IMPLEMENTED` Populate `periods` of each section (only checked if `include_sections` is True)"),
+    include_sections: bool = Query(
+        False, description="Populate `sections` for each course."),
+    include_periods: bool = Query(
+        True, description="`NOT YET IMPLEMENTED` Populate `periods` of each section (only checked if `include_sections` is True)"),
     title: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
-    days: Optional[List[str]] = Query(None, description="`NOT YET IMPLEMENTED`"),
-    subject_prefix: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
+    days: Optional[List[str]] = Query(
+        None, description="`NOT YET IMPLEMENTED`"),
+    subject_prefix: Optional[str] = Query(
+        None, description="`NOT YET IMPLEMENTED`"),
     number: Optional[str] = Query(None, description="`NOT YET IMPLEMENTED`"),
     limit: int = Query(
         10,
@@ -136,10 +151,12 @@ async def get_courses(
 
     return courses
 
+
 @app.get("/{semester_id}/courses/subjects", tags=["courses"], summary="Fetch course subject prefixes", response_model=List[str])
 async def list_course_subject_prefixes():
     """Fetch the unique course subject prefixes: e.g. BIOL, CSCI, ESCI, MATH, etc."""
     return fetch_course_subject_prefixes()
+
 
 @app.post("/{semester_id}/sections/update", tags=["admin"])
 async def update_sections(semester_id: str, api_key: str):
