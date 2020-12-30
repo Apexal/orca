@@ -1,6 +1,6 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Path, Query
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from api import api_version
 from typing import List, Optional
 from .db import (
@@ -16,6 +16,7 @@ from pydantic.types import constr
 from api.parser.registrar import Registrar
 import os
 from dotenv import load_dotenv, find_dotenv
+from psycopg2.extras import RealDictConnection
 
 load_dotenv(find_dotenv())
 
@@ -28,10 +29,14 @@ app = FastAPI(
     title="Open-source RPI Course API", description=description, version=api_version
 )
 
+@app.on_event("startup")
+def on_startup():
+    postgres_pool.init()
+
 # Cleanup database connections when FastAPI shutsdown
 @app.on_event("shutdown")
 def on_shutdown():
-    postgres_pool.closeall()
+    postgres_pool.cleanup()
 
 # Allow requests from all origins
 app.add_middleware(
@@ -47,8 +52,8 @@ CRN = constr(regex="^[0-9]{5}$")
 
 
 @app.get("/semesters", tags=["semesters"], response_model=List[Semester], summary="Fetch supported semesters", response_description="Semesters which have their schedules loaded into the API.")
-async def get_semesters():
-    return fetch_semesters()
+async def get_semesters(conn: RealDictConnection = Depends(postgres_pool.get_conn)):
+    return fetch_semesters(conn)
 
 
 @app.get("/{semester_id}/sections", tags=["sections"], response_model=List[CourseSection], summary="Get sections from CRNs", response_description="List of found course sections. Excludes CRNs not found.")
@@ -63,9 +68,10 @@ async def get_sections(
         description="The direct CRNs of the course sections to fetch.",
         example=["42608"],
     ),
+    conn: RealDictConnection = Depends(postgres_pool.get_conn)
 ):
     """Directly fetch course sections from CRNs."""
-    return fetch_course_sections(semester_id, crns)
+    return fetch_course_sections(conn, semester_id, crns)
 
 
 @app.get(
@@ -96,12 +102,14 @@ async def search_sections(
     offset: int = Query(
         0, description="The number of course sections in the response to skip."
     ),
+    conn: RealDictConnection = Depends(postgres_pool.get_conn)
 ):
     """
     Search course sections with different query parameters. Always returns a paginated response.
     """
 
     return search_course_sections(
+        conn,
         semester_id,
         limit,
         offset,
@@ -143,23 +151,24 @@ async def get_courses(
     offset: int = Query(
         0, description="The number of course sections in the response to skip."
     ),
+    conn: RealDictConnection = Depends(postgres_pool.get_conn)
 ):
-    courses = fetch_courses_without_sections(semester_id, limit, offset)
+    courses = fetch_courses_without_sections(conn, semester_id, limit, offset)
 
     if include_sections:
-        populate_course_periods(semester_id, courses, include_sections)
+        populate_course_periods(conn, semester_id, courses, include_sections)
 
     return courses
 
 
 @app.get("/{semester_id}/courses/subjects", tags=["courses"], summary="Fetch course subject prefixes", response_model=List[str])
-async def list_course_subject_prefixes():
+async def list_course_subject_prefixes(conn: RealDictConnection = Depends(postgres_pool.get_conn)):
     """Fetch the unique course subject prefixes: e.g. BIOL, CSCI, ESCI, MATH, etc."""
-    return fetch_course_subject_prefixes()
+    return fetch_course_subject_prefixes(conn)
 
 
 @app.post("/{semester_id}/sections/update", tags=["admin"])
-async def update_sections(semester_id: str, api_key: str):
+async def update_sections(semester_id: str, api_key: str, conn: RealDictConnection = Depends(postgres_pool.get_conn)):
     """
     **ADMIN ONLY**
     Update a semester's data by fetching it from all of the sources. This is called periodically to keep data fresh.
@@ -171,5 +180,5 @@ async def update_sections(semester_id: str, api_key: str):
     sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"], period_types)
     sis.login()
     course_sections = sis.fetch_course_sections(semester_id)
-    update_course_sections(semester_id, course_sections)
+    update_course_sections(conn, semester_id, course_sections)
     return {"update_count": len(course_sections)}
