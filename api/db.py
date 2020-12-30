@@ -2,7 +2,7 @@ from typing import Any, List, Dict
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from pypika.enums import Order
-from .models import Course, CourseSection, CourseSectionPeriod
+from .models import Course, CourseSection, CourseSectionPeriod, Semester
 
 from pypika import PostgreSQLQuery as Query, Table, Field
 from pypika.queries import QueryBuilder
@@ -25,6 +25,13 @@ periods_q: QueryBuilder = Query.from_(periods_t).select("*")
 
 conn = psycopg2.connect(
     os.environ["POSTGRES_DSN"], cursor_factory=RealDictCursor)
+
+
+def fetch_semesters() -> List[Semester]:
+    c = conn.cursor()
+    c.execute("SELECT * FROM semesters ORDER BY semester_id")
+    records = c.fetchall()
+    return list(map(Semester.from_record, records))
 
 
 def update_course_sections(semester_id: str, course_sections: List[CourseSection]):

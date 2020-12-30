@@ -1,9 +1,22 @@
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 from pydantic.fields import Field
-
+import datetime
 
 from enum import Enum
+
+
+class Semester(BaseModel):
+    semester_id: str = Field(example="202101")
+    title: str = Field(example="Spring 2021")
+    start_date: datetime.date
+    end_date: datetime.date
+
+    @staticmethod
+    def from_record(record: Dict[str, Any]):
+        print(record)
+        return Semester(
+            **record, start_date=record["start_end"].upper, end_date=record["start_end"].lower)
 
 
 class ClassTypeEnum(str, Enum):
