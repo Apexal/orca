@@ -16,7 +16,7 @@ class Semester(BaseModel):
     def from_record(record: Dict[str, Any]):
         print(record)
         return Semester(
-            **record, start_date=record["start_end"].upper, end_date=record["start_end"].lower)
+            **record, start_date=record["start_end"].lower, end_date=record["start_end"].upper)
 
 
 class ClassTypeEnum(str, Enum):
