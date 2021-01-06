@@ -1,0 +1,45 @@
+name: Prod Auto Update
+
+on:
+  push:
+    branches:
+      - auto_update
+  workflow_dispatch:
+  schedule:
+    # Run workflow every 30 minutes
+    - cron: "*/30 * * * *"
+
+jobs:
+  auto_update:
+    runs-on: ubuntu-latest
+
+    # Run job for each semester
+    strategy:
+      matrix:
+        semester: [20210]
+
+    steps:
+      - name: Call course update route
+        id: update
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          URL: https://rcos-orca.herokuapp.com
+          SEMESTER: ${{ matrix.semester }}
+        run: |
+          # Send POST request to production update route with API key in body
+          curl --data "api_key=$API_KEY" --silent --fail $URL/$SEMESTER/sections/update
+
+      - name: If update fail, create issue
+        if: ${{ failure() }}
+        uses: actions/github-script@v3
+        env:
+          SEMESTER: ${{ matrix.semester }}
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "Failed to update $SEMESTER",
+              labels: "bug"
+            })
