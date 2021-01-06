@@ -1,9 +1,6 @@
 name: Prod Auto Update
 
 on:
-  push:
-    branches:
-      - auto_update
   workflow_dispatch:
   schedule:
     # Run workflow every 30 minutes
