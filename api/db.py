@@ -25,12 +25,12 @@ periods_q: QueryBuilder = Query.from_(periods_t).select("*")
 
 
 class PostgresPoolWrapper:
-    def __init__(self, postgres_dsn: str, min_connections: int = 5, max_connections: int = 20):
+    def __init__(self, postgres_dsn: str, min_connections: int = int(os.environ["MIN_DB_CONNECTIONS"]), max_connections: int = int(os.environ["MAX_DB_CONNECTIONS"])):
         self.postgres_pool: Optional[SimpleConnectionPool] = None
         self.postgres_dsn = postgres_dsn
         self.min_connections = min_connections
         self.max_connections = max_connections
-    
+
     def init(self):
         """ Connects to the database and initializes connection pool """
         if self.postgres_pool is not None:
@@ -38,9 +38,9 @@ class PostgresPoolWrapper:
 
         try:
             self.postgres_pool = SimpleConnectionPool(
-                self.min_connections, 
-                self.max_connections, 
-                self.postgres_dsn, 
+                self.min_connections,
+                self.max_connections,
+                self.postgres_dsn,
                 cursor_factory=RealDictCursor
             )
 
@@ -55,23 +55,26 @@ class PostgresPoolWrapper:
             after the yield completes
         """
         if self.postgres_pool is None:
-            raise Exception("Cannot get db connection before connecting to database")
+            raise Exception(
+                "Cannot get db connection before connecting to database")
 
         conn: RealDictConnection = self.postgres_pool.getconn()
 
         if conn is None:
-            raise Exception("Failed to get connection from Postgres connection pool")
+            raise Exception(
+                "Failed to get connection from Postgres connection pool")
 
         yield conn
 
         self.postgres_pool.putconn(conn)
-    
+
     def cleanup(self):
         """ Closes all connections in the connection pool """
         if self.postgres_pool is None:
             return
 
         self.postgres_pool.closeall()
+
 
 postgres_pool = PostgresPoolWrapper(postgres_dsn=os.environ["POSTGRES_DSN"])
 
@@ -264,7 +267,8 @@ def fetch_course_subject_prefixes(conn: RealDictConnection) -> List[str]:
 def records_to_sections(conn: RealDictConnection, semester_id: str, records: List[Dict]) -> List[CourseSection]:
     sections = []
     for record in records:
-        periods = fetch_course_section_periods(conn, semester_id, record["crn"])
+        periods = fetch_course_section_periods(
+            conn, semester_id, record["crn"])
 
         sections.append(CourseSection.from_record(record, periods))
     return sections
