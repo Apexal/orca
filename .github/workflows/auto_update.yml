@@ -32,14 +32,12 @@ jobs:
       - name: If update fail, create issue
         if: ${{ failure() }}
         uses: actions/github-script@v3
-        env:
-          SEMESTER: ${{ matrix.semester }}
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           script: |
             github.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: "Failed to update $SEMESTER",
+              title: "Failed to update ${{ matrix.semester }}",
               labels: ["bug"]
             })
