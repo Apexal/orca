@@ -41,5 +41,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: "Failed to update $SEMESTER",
-              labels: "bug"
+              labels: ["bug"]
             })
