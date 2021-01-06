@@ -1,6 +1,7 @@
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional, Iterator
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
+from psycopg2.extras import RealDictCursor, RealDictConnection
 from pypika.enums import Order
 from .models import Course, CourseSection, CourseSectionPeriod, Semester
 
@@ -23,18 +24,66 @@ periods_t = Table("course_section_periods")
 periods_q: QueryBuilder = Query.from_(periods_t).select("*")
 
 
-conn = psycopg2.connect(
-    os.environ["POSTGRES_DSN"], cursor_factory=RealDictCursor)
+class PostgresPoolWrapper:
+    def __init__(self, postgres_dsn: str, min_connections: int = 5, max_connections: int = 20):
+        self.postgres_pool: Optional[SimpleConnectionPool] = None
+        self.postgres_dsn = postgres_dsn
+        self.min_connections = min_connections
+        self.max_connections = max_connections
+    
+    def init(self):
+        """ Connects to the database and initializes connection pool """
+        if self.postgres_pool is not None:
+            return
+
+        try:
+            self.postgres_pool = SimpleConnectionPool(
+                self.min_connections, 
+                self.max_connections, 
+                self.postgres_dsn, 
+                cursor_factory=RealDictCursor
+            )
+
+            if self.postgres_pool is None:
+                raise Exception("Unknown error")
+
+        except (Exception, psycopg2.DatabaseError) as e:
+            print(f"Failed to create Postgres connection pool: {e}")
+
+    def get_conn(self) -> Iterator[RealDictConnection]:
+        """ Yields a connection from the connection pool and returns the connection to the pool
+            after the yield completes
+        """
+        if self.postgres_pool is None:
+            raise Exception("Cannot get db connection before connecting to database")
+
+        conn: RealDictConnection = self.postgres_pool.getconn()
+
+        if conn is None:
+            raise Exception("Failed to get connection from Postgres connection pool")
+
+        yield conn
+
+        self.postgres_pool.putconn(conn)
+    
+    def cleanup(self):
+        """ Closes all connections in the connection pool """
+        if self.postgres_pool is None:
+            return
+
+        self.postgres_pool.closeall()
+
+postgres_pool = PostgresPoolWrapper(postgres_dsn=os.environ["POSTGRES_DSN"])
 
 
-def fetch_semesters() -> List[Semester]:
+def fetch_semesters(conn: RealDictConnection) -> List[Semester]:
     c = conn.cursor()
     c.execute("SELECT * FROM semesters ORDER BY semester_id")
     records = c.fetchall()
     return list(map(Semester.from_record, records))
 
 
-def update_course_sections(semester_id: str, course_sections: List[CourseSection]):
+def update_course_sections(conn: RealDictConnection, semester_id: str, course_sections: List[CourseSection]):
     c = conn.cursor()
 
     c.execute(
@@ -69,7 +118,7 @@ def update_course_sections(semester_id: str, course_sections: List[CourseSection
     conn.commit()
 
 
-def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
+def fetch_course_sections(conn: RealDictConnection, semester_id: str, crns: List[str]) -> CourseSection:
     c = conn.cursor()
 
     # Create query to fetch course sections
@@ -107,7 +156,7 @@ def fetch_course_sections(semester_id: str, crns: List[str]) -> CourseSection:
     return sections
 
 
-def search_course_sections(semester_id: str, limit: int, offset: int, **search):
+def search_course_sections(conn: RealDictConnection, semester_id: str, limit: int, offset: int, **search):
     c = conn.cursor()
 
     q: QueryBuilder = (
@@ -139,11 +188,11 @@ def search_course_sections(semester_id: str, limit: int, offset: int, **search):
     c.execute(q.get_sql())
     records = c.fetchall()
 
-    return records_to_sections(semester_id, records)
+    return records_to_sections(conn, semester_id, records)
 
 
 def fetch_course_section_periods(
-    semester_id: str, crn: str
+    conn: RealDictConnection, semester_id: str, crn: str
 ) -> List[CourseSectionPeriod]:
     c = conn.cursor()
     c.execute(
@@ -156,7 +205,7 @@ def fetch_course_section_periods(
 
 
 def populate_course_periods(
-    semester_id: str, courses: List[Course], include_periods: bool
+    conn: RealDictConnection, semester_id: str, courses: List[Course], include_periods: bool
 ):
     cursor = conn.cursor()
 
@@ -177,7 +226,7 @@ def populate_course_periods(
 
 
 def fetch_courses_without_sections(
-    semester_id: str, limit: int, offset: int, **search
+    conn: RealDictConnection, semester_id: str, limit: int, offset: int, **search
 ) -> List[Course]:
     c = conn.cursor()
 
@@ -199,7 +248,7 @@ def fetch_courses_without_sections(
     return list(map(lambda r: Course(**r), c.fetchall()))
 
 
-def fetch_course_subject_prefixes() -> List[str]:
+def fetch_course_subject_prefixes(conn: RealDictConnection) -> List[str]:
     cursor = conn.cursor()
     q: QueryBuilder = (
         Query.from_(course_sections_t)
@@ -212,10 +261,10 @@ def fetch_course_subject_prefixes() -> List[str]:
     return list(map(lambda record: record["course_subject_prefix"], cursor.fetchall()))
 
 
-def records_to_sections(semester_id: str, records: List[Dict]) -> List[CourseSection]:
+def records_to_sections(conn: RealDictConnection, semester_id: str, records: List[Dict]) -> List[CourseSection]:
     sections = []
     for record in records:
-        periods = fetch_course_section_periods(semester_id, record["crn"])
+        periods = fetch_course_section_periods(conn, semester_id, record["crn"])
 
         sections.append(CourseSection.from_record(record, periods))
     return sections
