@@ -1,3 +1,5 @@
+<img align="right" alt="ORCA logo" title="ORCA logo" src="https://github.com/Apexal/orca/blob/master/assets/logo.png?raw=true" width="300">
+
 ### **ORCA** is an open-source API for RPI's course schedule.
 
 Deployed at [https://rcos-orca.herokuapp.com/docs](https://rcos-orca.herokuapp.com/docs) [(alternate docs)](https://rcos-orca.herokuapp.com/redoc)
