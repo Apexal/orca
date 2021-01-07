@@ -25,8 +25,8 @@ ORCA gives you access to every course offered in a semester along with the secti
 Look at the requests' example responses to see the full schemas.
 
 ### Data
-ORCA periodically fetches its data from the SIS page listing course sections with enrollment data in table format. [Spring 2021 Example](https://sis.rpi.edu/reg/zs202101.htm)
-The page is extremely difficult to read and is even difficult to programmatically parse. These pages are fetched every **30 minutes** each day, though it is unclear how often the Registrar updates the pages themselves.
+ORCA periodically fetches its data from the SIS course search and the public page listing course sections with enrollment data in table format. [Spring 2021 Example](https://sis.rpi.edu/reg/zs202101.htm)
+Theses pages are difficult to read and even more difficult to programmatically parse. The data is fetched and updated **once every hour during the day** each day, though it is unclear how often the Registrar updates the pages themselves.
 
 ![Prod Auto Update](https://github.com/Apexal/orca/workflows/Prod%20Auto%20Update/badge.svg)
 
