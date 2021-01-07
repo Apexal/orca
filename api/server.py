@@ -1,3 +1,4 @@
+from api.security import API_KEY_QUERY
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Path, Query
 from fastapi import FastAPI, HTTPException, Depends
@@ -15,10 +16,7 @@ from api.models import Course, CourseSection, Semester
 from pydantic.types import constr
 from api.parser.registrar import Registrar
 import os
-from dotenv import load_dotenv, find_dotenv
 from psycopg2.extras import RealDictConnection
-
-load_dotenv(find_dotenv())
 
 
 with open("README.md") as f:
@@ -29,14 +27,18 @@ app = FastAPI(
     title="Open-source RPI Course API", description=description, version=api_version
 )
 
+
 @app.on_event("startup")
 def on_startup():
     postgres_pool.init()
 
 # Cleanup database connections when FastAPI shutsdown
+
+
 @app.on_event("shutdown")
 def on_shutdown():
     postgres_pool.cleanup()
+
 
 # Allow requests from all origins
 app.add_middleware(
@@ -167,14 +169,12 @@ async def list_course_subject_prefixes(conn: RealDictConnection = Depends(postgr
     return fetch_course_subject_prefixes(conn)
 
 
-@app.post("/{semester_id}/sections/update", tags=["admin"])
-async def update_sections(semester_id: str, api_key: str, conn: RealDictConnection = Depends(postgres_pool.get_conn)):
+@app.post("/{semester_id}/sections/update", tags=["admin"], dependencies=[Depends(API_KEY_QUERY)])
+async def update_sections(semester_id: str, conn: RealDictConnection = Depends(postgres_pool.get_conn)):
     """
     **ADMIN ONLY**
     Update a semester's data by fetching it from all of the sources. This is called periodically to keep data fresh.
     """
-    if api_key != os.environ["API_KEY"]:
-        return HTTPException(401, "Invalid API Key! Only admins can do this.")
 
     period_types = Registrar.parse_period_types(semester_id)
     sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"], period_types)
