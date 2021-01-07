@@ -20,7 +20,7 @@ jobs:
           python-version: "3.8"
       
       - name: psycopg2 prerequisites
-        run: sudo apt-get install python-dev libpq-dev
+        run: sudo apt-get install postgresql
 
       - name: Install pipenv Python dependency manager
         run: pip install pipenv
