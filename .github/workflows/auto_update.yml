@@ -3,8 +3,8 @@ name: Prod Auto Update
 on:
   workflow_dispatch:
   schedule:
-    # Run workflow every 30 minutes
-    - cron: "*/30 * * * *"
+    # Run workflow once every every hour from 6am-10pm eastern every day
+    - cron: "0 1-17 * * *"
 
 jobs:
   auto_update:
