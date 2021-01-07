@@ -28,6 +28,8 @@ Look at the requests' example responses to see the full schemas.
 ORCA periodically fetches its data from the SIS page listing course sections with enrollment data in table format. [Spring 2021 Example](https://sis.rpi.edu/reg/zs202101.htm)
 The page is extremely difficult to read and is even difficult to programmatically parse. These pages are fetched every **30 minutes** each day, though it is unclear how often the Registrar updates the pages themselves.
 
+![Prod Auto Update](https://github.com/Apexal/orca/workflows/Prod%20Auto%20Update/badge.svg)
+
 ### Uses
 This course data can be used for a variety of purposes small and large. Here are some examples:
 - create your own scheduling interface (e.g. YACS or QuACS)
