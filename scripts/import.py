@@ -8,7 +8,8 @@ if len(sys.argv) == 1:
     print("Pass semester ids to import as command line arguments")
     exit(1)
 
-postgres_pool = PostgresPoolWrapper(postgres_dsn=os.environ["POSTGRES_DSN"])
+postgres_pool = PostgresPoolWrapper(
+    postgres_dsn=os.environ["POSTGRES_DSN"], min_connections=1, max_connections=1)
 postgres_pool.init()
 
 conn = next(postgres_pool.get_conn())
