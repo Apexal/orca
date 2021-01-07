@@ -13,13 +13,15 @@ postgres_pool = PostgresPoolWrapper(
 postgres_pool.init()
 
 conn = next(postgres_pool.get_conn())
-for semester_id in sys.argv[1:]:
-    period_types = Registrar.parse_period_types(semester_id)
-    sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"], period_types)
-    if sis.login():
-        print("Logged in to SIS")
+sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"], )
+if sis.login():
+    print("Logged in to SIS")
+    for semester_id in sys.argv[1:]:
+        period_types = Registrar.parse_period_types(semester_id)
         print("Importing schedule for", semester_id)
-        course_sections = sis.fetch_course_sections(semester_id)
+        course_sections = sis.fetch_course_sections(
+            semester_id, period_types=period_types)
         update_course_sections(conn, semester_id, course_sections)
-    else:
-        exit(1)
+else:
+    print("Failed to log into SIS")
+    exit(1)

@@ -41,12 +41,10 @@ class SIS:
     def __init__(
         self,
         rin: str,
-        pin: str,
-        period_types: Optional[Dict[Tuple[str, int, str], ClassTypeEnum]] = None,
+        pin: str
     ) -> None:
         self.rin = rin
         self.pin = pin
-        self.period_types = period_types if period_types is not None else dict()
         self.session = requests.Session()  # Persistent session to make requests
 
     def login(self) -> bool:
@@ -87,7 +85,9 @@ class SIS:
         return tree.xpath("//select[@id='subj_id']/option/@value")
 
     def fetch_course_sections(
-        self, semester_id: str, subjects: List[str] = None
+        self,
+        semester_id: str, subjects: List[str] = None,
+        period_types: Dict[Tuple[str, int, str], ClassTypeEnum] = dict()
     ) -> List[CourseSection]:
 
         if subjects is None:
@@ -129,7 +129,8 @@ class SIS:
                 )
                 last_crn = values[Column.CRN]
 
-            period = SIS._create_course_section_period(semester_id, last_crn, values, self.period_types)
+            period = SIS._create_course_section_period(
+                semester_id, last_crn, values, period_types)
             sections[last_crn].periods.append(period)
 
         return list(sections.values())
@@ -145,11 +146,13 @@ class SIS:
 
         days = []
         if values[Column.DAYS] is not None:
-            days = list(map(lambda letter: DAY_LETTERS[letter], values[Column.DAYS]))
+            days = list(
+                map(lambda letter: DAY_LETTERS[letter], values[Column.DAYS]))
 
         instructors = []
         if values[Column.INSTRUCTOR] is not None:
-            instructors = values[Column.INSTRUCTOR].replace(" (P)", "").split(", ")
+            instructors = values[Column.INSTRUCTOR].replace(
+                " (P)", "").split(", ")
 
         period_type = "lecture"
         if len(days) > 0:
@@ -196,7 +199,8 @@ class SIS:
 
     @staticmethod
     def _to_24_hour_time(time: str) -> str:
-        hours, minutes = map(int, time.replace("am", "").replace("pm", "").split(":"))
+        hours, minutes = map(int, time.replace(
+            "am", "").replace("pm", "").split(":"))
 
         if hours == 12 and "am" in time:
             hours = 0
