@@ -9,7 +9,7 @@ if len(sys.argv) == 1:
     exit(1)
 
 postgres_pool = PostgresPoolWrapper(
-    postgres_dsn=os.environ["POSTGRES_DSN"], min_connections=1, max_connections=1)
+    postgres_dsn=os.environ["POSTGRES_DSN"])
 postgres_pool.init()
 
 conn = next(postgres_pool.get_conn())

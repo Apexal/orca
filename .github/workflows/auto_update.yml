@@ -28,6 +28,8 @@ jobs:
       - name: Scrape data and update database
         id: update
         env:
+          MIN_DB_CONNECTIONS: 1
+          MAX_DB_CONNECTIONS: 1
           POSTGRES_DSN: ${{ secrets.POSTGRES_DSN }}
           SIS_RIN: ${{ secrets.SIS_RIN }}
           SIS_PIN: ${{ secrets.SIS_PIN }}
