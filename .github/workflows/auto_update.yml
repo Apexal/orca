@@ -13,7 +13,7 @@ jobs:
     # Run job for each semester
     strategy:
       matrix:
-        semester: [20210]
+        semester: [202101]
 
     steps:
       - name: Call course update route
