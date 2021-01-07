@@ -66,3 +66,8 @@ ORCA is entirely open source and hosted on GitHub at [Apexa/orca](https://github
 ### Issues/Feature Requests
 
 Please report these on the GitHub repo at [Apexa/orca](https://github.com/Apexal/orca/issues)!
+
+### Main Contributors
+
+- Frank Matranga ([@Apexal](https://github.com/Apexal))
+- Joshua Wu ([@123joshuawu](https://github.com/123joshuawu))
