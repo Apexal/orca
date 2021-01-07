@@ -93,7 +93,7 @@ def update_course_sections(conn: RealDictConnection, semester_id: str, course_se
         "DELETE FROM course_section_periods WHERE semester_id=%s", (semester_id,))
     c.execute("DELETE FROM course_sections WHERE semester_id=%s", (semester_id,))
 
-    print(f"Adding {len(course_sections)} sections")
+    print(f"Adding {len(course_sections)} sections...", flush=True)
     for course_section in course_sections:
         record = course_section.to_record()
 
@@ -102,7 +102,6 @@ def update_course_sections(conn: RealDictConnection, semester_id: str, course_se
             .into(course_sections_t) \
             .columns(*record.keys()) \
             .insert(*record.values())
-        print(str(q))
         c.execute(str(q))
 
         # Add course sections
@@ -116,9 +115,9 @@ def update_course_sections(conn: RealDictConnection, semester_id: str, course_se
 
             # https://github.com/kayak/pypika/issues/527
             workaround = str(q).replace("ARRAY[]", "'{}'")
-            print(workaround)
             c.execute(workaround)
     conn.commit()
+    print("Done!", flush=True)
 
 
 def fetch_course_sections(conn: RealDictConnection, semester_id: str, crns: List[str]) -> CourseSection:
