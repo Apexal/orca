@@ -24,7 +24,7 @@ jobs:
           SEMESTER: ${{ matrix.semester }}
         run: |
           # Send POST request to production update route with API key in body
-          curl --data "api_key=$API_KEY" --silent --fail $URL/$SEMESTER/sections/update
+          curl -X POST --silent --fail $URL/$SEMESTER/sections/update?api_key=$API_KEY
 
       - name: If update fail, create issue
         if: ${{ failure() }}
