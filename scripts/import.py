@@ -21,5 +21,5 @@ for semester_id in sys.argv[1:]:
         print("Importing schedule for", semester_id)
         course_sections = sis.fetch_course_sections(semester_id)
         update_course_sections(conn, semester_id, course_sections)
-else:
-    exit(1)
+    else:
+        exit(1)
