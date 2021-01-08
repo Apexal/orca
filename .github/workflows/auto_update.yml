@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # Run workflow once every every hour from 6am-10pm eastern every day
-    - cron: "0 1-17 * * *"
+    - cron: "0 * * * *"
 
 jobs:
   auto_update:
