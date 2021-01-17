@@ -113,11 +113,12 @@ def update_course_sections(conn: RealDictConnection, semester_id: str, course_se
             for period in course_section.periods:
                 q = q.insert(*period.to_record().values())
 
-            # https://github.com/kayak/pypika/issues/527
-            workaround = str(q).replace("ARRAY[]", "'{}'")
-            c.execute(workaround)
-    conn.commit()
-    print("Done!", flush=True)
+            c.execute(str(q))
+    if len(course_sections) > 0:
+        conn.commit()
+        print("Done!", flush=True)
+    else:
+        print("No course sections found... rolling back any changes")
 
 
 def fetch_course_sections(conn: RealDictConnection, semester_id: str, crns: List[str]) -> CourseSection:

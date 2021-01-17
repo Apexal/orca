@@ -167,18 +167,3 @@ async def get_courses(
 async def list_course_subject_prefixes(conn: RealDictConnection = Depends(postgres_pool.get_conn)):
     """Fetch the unique course subject prefixes: e.g. BIOL, CSCI, ESCI, MATH, etc."""
     return fetch_course_subject_prefixes(conn)
-
-
-@app.post("/{semester_id}/sections/update", tags=["admin"], dependencies=[Depends(API_KEY_QUERY)])
-async def update_sections(semester_id: str, conn: RealDictConnection = Depends(postgres_pool.get_conn)):
-    """
-    **ADMIN ONLY**
-    Update a semester's data by fetching it from all of the sources. This is called periodically to keep data fresh.
-    """
-
-    period_types = Registrar.parse_period_types(semester_id)
-    sis = SIS(os.environ["SIS_RIN"], os.environ["SIS_PIN"], period_types)
-    sis.login()
-    course_sections = sis.fetch_course_sections(semester_id)
-    update_course_sections(conn, semester_id, course_sections)
-    return {"update_count": len(course_sections)}
