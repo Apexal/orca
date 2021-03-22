@@ -34,7 +34,7 @@ jobs:
           SIS_RIN: ${{ secrets.SIS_RIN }}
           SIS_PIN: ${{ secrets.SIS_PIN }}
         run: |
-          pipenv run python -m scripts.import 202101
+          pipenv run python -m scripts.import 202109
 
       - name: If update fail, create issue
         if: steps.update.outcome == 'failure'
